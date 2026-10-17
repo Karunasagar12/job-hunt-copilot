@@ -83,6 +83,26 @@ def test_failed_replace_keeps_original_and_cleans_temp(cfg, monkeypatch):
     assert list(paths.data_dir().iterdir()) == [paths.settings_path()]
 
 
+@pytest.mark.parametrize('corrupt', [False, True])
+def test_unsupported_chmod_does_not_abort_save_or_backup(cfg, monkeypatch, corrupt):
+    original = b'{invalid settings'
+    if corrupt:
+        paths.settings_path().write_bytes(original)
+
+    def unsupported(*args):
+        raise OSError('unsupported chmod')
+
+    monkeypatch.setattr(cfg.os, 'chmod', unsupported)
+    cfg.update({'llm': {'model': 'saved-without-chmod'}})
+    assert cfg.get('llm.model') == 'saved-without-chmod'
+    assert cfg.load_error() is None
+    backups = list(paths.data_dir().glob('settings.json.corrupt-*'))
+    assert len(backups) == int(corrupt)
+    if corrupt:
+        assert backups[0].read_bytes() == original
+    assert not list(paths.data_dir().glob('*.tmp'))
+
+
 def test_settings_api_masked_echo_and_invalid_bodies(cfg, client):
     cfg.update({'llm': {'api_key': 'sk-ant-SECRETSECRET1234'}})
     response = client.get('/api/settings')

@@ -74,6 +74,14 @@ def get(path, default=None):
     return value
 
 
+def _chmod_private(path):
+    # ponytail: Windows ignores POSIX modes; data/ is local-only anyway
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
 def update(partial):
     global _load_error
     if not isinstance(partial, dict):
@@ -86,13 +94,12 @@ def update(partial):
         backup = target.with_name(f'{target.name}.corrupt-{stamp}-{uuid4().hex}')
         with backup.open('xb') as stream:
             stream.write(target.read_bytes())
-        os.chmod(backup, 0o600)
+        _chmod_private(backup)
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=target.parent, prefix='.settings-', suffix='.tmp', delete=False) as stream:
             temporary = stream.name
-            # ponytail: Windows ignores POSIX modes; data/ is local-only anyway
-            os.chmod(temporary, 0o600)
+            _chmod_private(temporary)
             json.dump(value, stream, indent=2, ensure_ascii=False)
             stream.write('\n')
         os.replace(temporary, target)
