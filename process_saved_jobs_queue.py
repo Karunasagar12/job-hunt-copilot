@@ -31,7 +31,7 @@ def drain_saved_jobs_queue() -> int:
             job_id = db.create_job(
                 company="Pending",
                 role="Pending",
-                geography="gcc",
+                geography="auto",
                 source_type=row["source_type"],
                 jd_url=row["url"],
             )

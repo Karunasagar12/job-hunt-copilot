@@ -3,7 +3,7 @@
 generate.py — Job Hunt System main engine
 
 CLI usage:
-  python generate.py --jd "paste JD text here" --geo gcc
+  python generate.py --jd "paste JD text here" --geo auto
   python generate.py --jd-url "https://linkedin.com/jobs/view/123" --geo auto
   python generate.py --jd-url "..." --person-info "Name|Title|Company|email"
   python generate.py --batch-file jobs.json          # up to 3 jobs in parallel
@@ -28,6 +28,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 import paths
+import profile as prof
 
 load_dotenv(paths.repo_dir() / ".env")
 load_dotenv(paths.data(".env"))
@@ -39,45 +40,32 @@ import llm_client
 paths.ensure_dirs()
 db.init_db()
 
+REQUIRED_KNOWLEDGE = (
+    "career-master.md", "employment-master.md", "education-master.md",
+    "skills-master.md", "identity.md",
+)
+
+
+def setup_missing() -> list[str]:
+    missing = []
+    try:
+        prof.load_profile()
+    except prof.ProfileError:
+        missing.append("profile")
+    if not all((paths.knowledge_dir() / name).is_file() for name in REQUIRED_KNOWLEDGE):
+        missing.append("knowledge")
+    return missing
+
+
 def _preflight() -> None:
-    # AWS creds are resolved by boto3 itself (IAM instance role on EC2, or
-    # AWS_ACCESS_KEY_ID/SECRET locally) -- no need to duplicate that check here,
-    # and requiring the env vars explicitly broke every job on EC2 (role-based,
-    # no env vars set) after the Sprint 15 Bedrock migration.
     skill_dir = paths.skills_dir()
-    knowledge_dir = paths.knowledge_dir()
-    for d in (skill_dir, knowledge_dir):
-        if not d.is_dir():
-            sys.exit(f"Required directory not found: {d}/ — configure DATA_DIR and repository assets.")
-    required_knowledge = [
-        "career-master.md", "employment-master.md", "education-master.md",
-        "skills-master.md", "identity.md",
-    ]
-    missing_files = [f for f in required_knowledge if not (knowledge_dir / f).exists()]
-    if missing_files:
-        sys.exit(f"Missing knowledge base files: {', '.join(missing_files)}")
-    photo = paths.data("photo.jpg")
-    if not photo.exists():
-        sys.exit(f"Profile photo not found at {photo} — required for PDF render.")
+    if not skill_dir.is_dir():
+        sys.exit(f"Required directory not found: {skill_dir}/ - configure DATA_DIR and repository assets.")
+    missing = setup_missing()
+    if missing:
+        sys.exit(f"Setup incomplete ({', '.join(missing)}). Finish setup in the dashboard (Profile).")
 
 LLM_TIMEOUT = 300
-
-# ── Geography keyword sets ────────────────────────────────────────────────────
-GCC_KEYWORDS = {
-    "dubai", "abu dhabi", "saudi", "qatar", "oman", "bahrain", "kuwait", "uae",
-}
-EU_KEYWORDS = {
-    "france", "netherlands", "germany", "ireland", "uk", "lyon", "amsterdam",
-    "berlin", "dublin", "london", "paris", "brussels", "zurich", "europe",
-    "austria", "vienna", "switzerland", "geneva", "belgium", "luxembourg", "spain",
-    "madrid", "barcelona", "italy", "milan", "portugal", "lisbon", "sweden",
-    "stockholm", "denmark", "copenhagen", "norway", "finland", "helsinki", "poland",
-    "warsaw", "czech", "prague", "munich", "hamburg", "frankfurt", "united kingdom",
-}
-INDIA_KEYWORDS = {
-    "chennai", "bangalore", "bengaluru", "mumbai", "delhi", "hyderabad", "india",
-}
-
 
 # ── Known recruitment agencies ────────────────────────────────────────────────
 KNOWN_AGENCIES = {
@@ -87,7 +75,7 @@ KNOWN_AGENCIES = {
     "antal international", "antal", "austin fraser", "eames consulting",
     "marks sattin", "finatal", "gartner", "selby jennings", "green park",
     "odgers berndtson", "russell reynolds", "egon zehnder",
-    # GCC / MENA
+    # Regional agencies
     "charterhouse", "tiger recruitment", "bayt", "inspire selection",
     "black pearl", "guildhall", "cooper fitch", "mackenzie jones",
     "nadia", "transearch", "gulftalent", "talentmate",
@@ -178,7 +166,7 @@ def fetch_linkedin_job(url: str) -> str:
 
 
 def is_agency(company_name: str) -> bool:
-    return company_name.lower().strip() in KNOWN_AGENCIES
+    return company_name.lower().strip() in KNOWN_AGENCIES or prof.is_extra_agency(company_name)
 
 
 def extract_actual_company(jd_text: str) -> str | None:
@@ -283,22 +271,11 @@ def format_person_profile(person: dict) -> str:
 
 def detect_geo(jd_text: str, geo_flag: str) -> str:
     if geo_flag != "auto":
+        known = prof.region_ids()
+        if geo_flag not in known:
+            raise ValueError(f"Unknown region: {geo_flag}. Known regions: {', '.join(known)}")
         return geo_flag
-    lower = jd_text.lower()
-    # India/GCC city and country names are specific enough that a match is a reliable signal.
-    # EU_KEYWORDS contains generic terms ("europe", "france") that commonly appear in passing
-    # (client base, expansion plans) even when the job itself is based elsewhere — so it's
-    # checked last, as the least specific signal.
-    for kw in GCC_KEYWORDS:
-        if kw in lower:
-            return "gcc"
-    for kw in INDIA_KEYWORDS:
-        if kw in lower:
-            return "india"
-    for kw in EU_KEYWORDS:
-        if kw in lower:
-            return "eu"
-    return "gcc"
+    return prof.detect_region(jd_text)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -468,7 +445,8 @@ def render_pdf(data_module_code: str, output_path: str, agency_name: str | None 
         spec = importlib.util.spec_from_file_location("resume_data", tmp_path)
         data = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(data)
-        data.PHOTO = str(paths.data("photo.jpg").resolve())
+        photo = prof.photo_path()
+        data.PHOTO = str(photo) if photo else None
         from design.resume_design_base import build
         build(data, output_path)
         return verify_ats_parseability(output_path, getattr(data, "NAME", ""), getattr(data, "EMAIL", ""), agency_name)
@@ -523,6 +501,10 @@ def call_humanizer(outreach_text: str) -> str:
 def make_slug(text: str) -> str:
     slug = re.sub(r"[^\w\s-]", "", text)
     return re.sub(r"[\s-]+", "_", slug.strip())
+
+
+def output_base(company: str, role: str) -> str:
+    return f"{prof.load_profile()['file_prefix']}_{make_slug(company)}_{make_slug(role)}"
 
 
 def extract_job_meta(data_module_code: str) -> tuple[str, str]:
@@ -727,7 +709,7 @@ def run_single_job(
 
         # 5. Extract meta, create folder ──────────────────────────────────────
         company, role = extract_job_meta(data_module_code)
-        base = f"JaneDoe_{make_slug(company)}_{make_slug(role)}"
+        base = output_base(company, role)
         job_dir = paths.output_dir() / f"{make_slug(company)}_{make_slug(role)}"
         job_dir.mkdir(parents=True, exist_ok=True)
 
@@ -820,7 +802,11 @@ def run_single_job(
 #  MAIN
 # ─────────────────────────────────────────────────────────────────────────────
 
-def main() -> None:
+def build_arg_parser() -> argparse.ArgumentParser:
+    try:
+        geo_choices = prof.region_ids() + ["auto"]
+    except prof.ProfileError:
+        geo_choices = None
     parser = argparse.ArgumentParser(
         description="Generate a tailored CV, cover letter, and outreach for a job"
     )
@@ -828,7 +814,7 @@ def main() -> None:
     parser.add_argument("--jd-file", help="Path to a .txt file containing the JD")
     parser.add_argument("--jd-url", help="LinkedIn job posting URL")
     parser.add_argument(
-        "--geo", choices=["gcc", "eu", "india", "auto"], default="auto",
+        "--geo", choices=geo_choices, default="auto",
         help="Target geography (default: auto-detect from JD)"
     )
     parser.add_argument(
@@ -855,6 +841,11 @@ def main() -> None:
         "--json-output", action="store_true",
         help="Print result as JSON to stdout (used by Flask API subprocess)"
     )
+    return parser
+
+
+def main() -> None:
+    parser = build_arg_parser()
     args = parser.parse_args()
 
     # ── Batch mode ───────────────────────────────────────────────────────────

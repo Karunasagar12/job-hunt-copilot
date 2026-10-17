@@ -408,8 +408,3 @@ def build(data, output_path: str):
 
     c.save()
     print(f"  OK  {output_path}  [{page[0]} pages]")
-
-
-# ═══════════════════════════════════════════════════════════════
-#  QUICK TEST — run this file directly to verify the engine works
-# ═══════════════════════════════════════════════════════════════
