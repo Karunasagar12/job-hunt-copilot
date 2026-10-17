@@ -3,6 +3,21 @@ import base64
 from api.app import _signature_to_cid
 
 
+def test_signature_fixture_preserves_embedded_image_cids():
+    from io import BytesIO
+    from PIL import Image
+
+    image = BytesIO()
+    Image.new('RGB', (1, 1), 'white').save(image, format='PNG')
+    encoded = base64.b64encode(image.getvalue()).decode('ascii')
+    html = '<body>\n<div>Jane<br>' + ''.join(
+        f'<img src="data:image/png;base64,{encoded}">' for _ in range(4)
+    ) + '</div>\n</body>'
+    converted, images = _signature_to_cid(html)
+    assert len(images) == 4 and converted.count('cid:') == 4
+    assert '<br>' in converted
+
+
 def test_converts_two_embedded_png_images():
     first = base64.b64encode(b"first").decode("ascii")
     second = base64.b64encode(b"second").decode("ascii")

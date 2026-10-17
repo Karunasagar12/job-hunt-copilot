@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import base64
+from html import escape
 import logging
 import os
 import paths
+import profile as prof
+import re
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -112,13 +115,26 @@ def get_service() -> Any:
 
 
 def _get_signature(geo: str = "eu") -> str:
-    """Return the signature HTML for the given geo (eu/gcc/india), or empty string."""
-    import re
-    geo_map = {"gcc": "UAE", "eu": "EU", "india": "India"}
-    fname = geo_map.get(geo.lower(), "EU")
-    sig_path = paths.repo_dir() / "signatures" / "Final" / f"Signature_{fname}.html"
+    """Render the configured profile's signature body, or an empty string."""
     try:
-        html = sig_path.read_text(encoding="utf-8")
+        p = prof.load_profile()
+        region = prof.get_region(geo.lower(), p)
+        values = {key: escape(str(p.get(key, ''))) for key in
+                  ('name', 'signoff_title', 'email')}
+        values.update({key: escape(str(region.get(key, ''))) for key in
+                       ('phone', 'location')})
+        values['phone_sep'] = ' · ' if values['phone'] else ''
+        links = []
+        for key, label in (('linkedin', 'LinkedIn'), ('github', 'GitHub')):
+            url = p.get(key, '').strip()
+            if url:
+                if not re.match(r'https?://', url, re.IGNORECASE):
+                    url = 'https://' + url
+                links.append(f'<a href="{escape(url)}" style="color:#C75B39">{label}</a>')
+        values['links'] = ' · '.join(links)
+        html = (paths.templates_dir() / 'signature.html').read_text(encoding='utf-8')
+        html = re.sub(r'{{(name|signoff_title|phone|phone_sep|email|location|links)}}',
+                      lambda match: values[match.group(1)], html)
         m = re.search(r"<body[^>]*>(.*)</body>", html, re.DOTALL | re.IGNORECASE)
         signature = m.group(1).strip() if m else html
         # AgentMail converts formatting newlines between inline elements to
@@ -129,14 +145,24 @@ def _get_signature(geo: str = "eu") -> str:
         return ""
 
 
-_SIG_MARKERS = (
-    "linkedin.com/in/janedoe-example",
-    "senior data scientist",
-)
+def _sig_markers() -> tuple:
+    try:
+        p = prof.load_profile()
+        return tuple(p.get(key, '').strip().lower() for key in
+                     ('linkedin', 'signoff_title') if p.get(key, '').strip())
+    except Exception:
+        return ()
+
+
+def _signoff_name() -> str:
+    try:
+        return prof.load_profile().get('signoff_name', '').strip().lower()
+    except Exception:
+        return ''
 
 
 def strip_signature(body: str) -> str:
-    """Remove the hardcoded Jane signature block from the end of an email body."""
+    """Remove the configured profile's signature block from an email body."""
     lines = body.splitlines()
     if not lines:
         return body
@@ -148,7 +174,7 @@ def strip_signature(body: str) -> str:
     found = False
     while i >= 0:
         lower = lines[i].strip().lower()
-        if lower == "jane" or any(m in lower for m in _SIG_MARKERS):
+        if (lower and lower == _signoff_name()) or any(m in lower for m in _sig_markers()):
             found = True
             i -= 1
             continue
