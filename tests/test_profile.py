@@ -133,6 +133,12 @@ def test_timezone(base):
     assert prof.today_local(prof.validate(base), datetime(2026, 10, 17, 22, 30, tzinfo=timezone.utc)) == date(2026, 10, 18)
 
 
+@pytest.mark.parametrize('token', ['Name', 'unknown1', 'name_typo2'])
+def test_unknown_placeholder_tokens_are_rejected(base, token):
+    with pytest.raises(prof.ProfileError):
+        prof.fill_placeholders('{{ ' + token + ' }}', prof.validate(base))
+
+
 def test_photo_path_and_containment(base, tmp_path, monkeypatch):
     monkeypatch.setenv('DATA_DIR', str(tmp_path))
     base['photo'] = ''

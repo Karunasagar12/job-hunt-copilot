@@ -199,11 +199,11 @@ def render_identity_md(p):
 def fill_placeholders(text, p=None):
     p = load_profile() if p is None else p
     def replace(match):
-        key = match.group(1)
+        key = match.group(1).strip()
         if key not in PLACEHOLDERS:
             raise ProfileError(f'Unknown placeholder: {key}', key)
         return p[key]
-    return re.sub(r'{{\s*([a-z_]+)\s*}}', replace, text)
+    return re.sub(r'{{([^{}]*)}}', replace, text)
 
 
 def photo_path(p=None):
