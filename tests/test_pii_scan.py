@@ -1,8 +1,9 @@
-﻿from pathlib import Path
+from pathlib import Path
 import importlib.util
 import os
 import subprocess
 import sys
+import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / 'scripts' / 'pii_scan.py'
@@ -20,10 +21,8 @@ def test_scan_reports_case_insensitive_term_and_line():
     assert scanner().scan_text('clean\nSECRETNAME\n', ['secretname']) == [(2, 'secretname')]
 
 
-def test_load_terms_strips_comments_and_collects_allowlist(tmp_path):
-    denylist = tmp_path / 'terms.txt'
-    denylist.write_text('#comment\n\n foo \n!Bar12', encoding='utf-8')
-    assert scanner().load_terms(denylist) == (['foo'], ['bar12'])
+def test_load_terms_strips_comments_and_collects_allowlist():
+    assert scanner().load_terms('#comment\n\n foo \n!Bar12') == (['foo'], ['bar12'])
 
 
 def test_allowed_strings_are_removed_before_matching():
@@ -46,6 +45,9 @@ def test_cli_scans_tracked_staged_untracked_and_binary_but_not_ignored(tmp_path)
     assert SCRIPT.exists(), 'privacy scanner has not been implemented'
     repo = tmp_path / 'repo'
     repo.mkdir()
+    (repo / 'scripts').mkdir()
+    fixture_script = repo / 'scripts' / 'pii_scan.py'
+    shutil.copyfile(SCRIPT, fixture_script)
     git(repo, 'init', '-b', 'main')
     git(repo, 'config', 'user.name', 'Template Contributors')
     git(repo, 'config', 'user.email', 'contributors@example.org')
@@ -61,7 +63,7 @@ def test_cli_scans_tracked_staged_untracked_and_binary_but_not_ignored(tmp_path)
     denylist = tmp_path / 'terms.txt'
     denylist.write_text('secretname', encoding='utf-8')
     env = {**os.environ, 'PII_DENYLIST': str(denylist)}
-    result = subprocess.run([sys.executable, str(SCRIPT)], cwd=repo, env=env,
+    result = subprocess.run([sys.executable, str(fixture_script)], cwd=tmp_path, env=env,
                             capture_output=True, text=True)
     assert result.returncode == 1
     assert set(result.stdout.splitlines()) == {
@@ -72,6 +74,9 @@ def test_cli_scans_tracked_staged_untracked_and_binary_but_not_ignored(tmp_path)
 
 def test_history_scans_author_and_message_without_echoing_message(tmp_path):
     assert SCRIPT.exists(), 'privacy scanner has not been implemented'
+    (tmp_path / 'scripts').mkdir()
+    fixture_script = tmp_path / 'scripts' / 'pii_scan.py'
+    shutil.copyfile(SCRIPT, fixture_script)
     git(tmp_path, 'init', '-b', 'main')
     git(tmp_path, 'config', 'user.name', 'SecretName')
     git(tmp_path, 'config', 'user.email', 'contributors@example.org')
@@ -79,7 +84,7 @@ def test_history_scans_author_and_message_without_echoing_message(tmp_path):
     denylist = tmp_path / '.git' / 'terms.txt'
     denylist.write_text('secretname', encoding='utf-8')
     env = {**os.environ, 'PII_DENYLIST': str(denylist)}
-    result = subprocess.run([sys.executable, str(SCRIPT), '--history'], cwd=tmp_path,
+    result = subprocess.run([sys.executable, str(fixture_script), '--history'], cwd=ROOT,
                             env=env, capture_output=True, text=True)
     assert result.returncode == 1
     assert len(result.stdout.splitlines()) >= 2

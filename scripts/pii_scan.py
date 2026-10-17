@@ -1,4 +1,4 @@
-﻿"""Scan Git-visible files and optional commit metadata without printing source lines."""
+"""Scan Git-visible files and optional commit metadata without printing source lines."""
 import argparse
 import os
 from pathlib import Path
@@ -7,10 +7,10 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def load_terms(path):
+def load_terms(text):
     """Return lowercase denied terms and !-prefixed allowed strings."""
     terms, allowed = [], []
-    for raw in Path(path).read_text(encoding='utf-8-sig').splitlines():
+    for raw in text.splitlines():
         term = raw.strip().lower()
         if not term or term.startswith('#'):
             continue
@@ -37,7 +37,7 @@ def scan_text(text, terms, allowed=()):
 
 
 def git(*args):
-    return subprocess.run(['git', *args], check=True, capture_output=True).stdout
+    return subprocess.run(['git', *args], check=True, capture_output=True, cwd=ROOT).stdout
 
 
 def main():
@@ -47,7 +47,7 @@ def main():
     denylist = Path(os.environ.get('PII_DENYLIST', ROOT.parent / 'pii_denylist.txt'))
     if not denylist.is_file():
         return 2
-    terms, allowed = load_terms(denylist)
+    terms, allowed = load_terms(denylist.read_text(encoding='utf-8-sig'))
     repo = Path(os.fsdecode(git('rev-parse', '--show-toplevel')).strip())
     os.chdir(repo)
     paths = git('ls-files', '-z', '--cached', '--others', '--exclude-standard').split(b'\0')
