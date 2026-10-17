@@ -155,6 +155,7 @@ def save_profile(p):
     _atomic_write(paths.profile_path(), json.dumps(p, ensure_ascii=False, indent=2) + '\n')
     _cache = None
     _atomic_write(paths.knowledge_dir() / 'identity.md', render_identity_md(p))
+    return p
 
 
 def region_ids(p=None):
@@ -162,10 +163,10 @@ def region_ids(p=None):
     return [region['id'] for region in p['regions']]
 
 
-def get_region(id=None, p=None):
+def get_region(region_id=None, p=None):
     p = load_profile() if p is None else p
     for region in p['regions']:
-        if region['id'] == id:
+        if region['id'] == region_id:
             return deepcopy(region)
     return deepcopy(next(region for region in p['regions'] if region['id'] == p['default_region']))
 

@@ -99,6 +99,23 @@ def test_region_fallbacks(base):
     assert prof.validate(base)['default_region'] == 'eu'
 
 
+def test_get_region_accepts_region_id_keyword(base):
+    p = prof.validate(base)
+    assert prof.get_region(region_id='eu', p=p)['id'] == 'eu'
+
+
+def test_save_returns_normalized_profile(base, tmp_path, monkeypatch):
+    base['photo'] = ''
+    base['name'] = ' Jane Doe '
+    base.pop('signoff_name')
+    monkeypatch.setenv('DATA_DIR', str(tmp_path))
+    saved = prof.save_profile(base)
+    assert saved == prof.validate(base)
+    assert saved['name'] == 'Jane Doe'
+    assert saved['signoff_name'] == 'Jane'
+    assert base['name'] == ' Jane Doe '
+
+
 def test_placeholders_and_agencies(base):
     base['extra_agencies'] = ['Example Staffing']
     p = prof.validate(base)

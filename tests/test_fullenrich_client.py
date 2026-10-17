@@ -127,9 +127,9 @@ def test_enrich_by_linkedin_async_invokes_callback_from_daemon_thread(monkeypatc
     with patch("fullenrich_client.requests.post", return_value=_submit_response()), \
          patch("fullenrich_client.requests.get", return_value=_poll_response("jane@acme.com", "DELIVERABLE")):
         enrichment_id = fullenrich_client.enrich_by_linkedin_async("https://linkedin.com/in/jane", on_result)
+        assert done.wait(timeout=2), "on_result callback was never invoked"
 
     assert enrichment_id == "enrich-1"
-    assert done.wait(timeout=2), "on_result callback was never invoked"
     assert captured["email"] == "jane@acme.com"
     assert captured["profile"]["id"] == "fe-profile-1"
 
