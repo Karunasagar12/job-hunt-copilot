@@ -1,0 +1,11 @@
+[
+  {
+    "label": "Example Analytics",
+    "jd_url": "https://example.com/jobs/data-scientist",
+    "persons": [
+      "Alex Smith|Recruiter|Example Recruiting|alex.smith@example.com"
+    ],
+    "company": null,
+    "geo": "eu"
+  }
+]

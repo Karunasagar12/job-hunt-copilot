@@ -1,0 +1,12 @@
+boto3
+python-dotenv
+reportlab
+pypdf>=4.0.0
+requests
+beautifulsoup4
+flask
+flask-cors
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+pytest

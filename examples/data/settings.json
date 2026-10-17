@@ -1,0 +1,33 @@
+{
+  "llm": {
+    "provider": "fake",
+    "model": "",
+    "api_key": "",
+    "base_url": "",
+    "aws_region": "us-east-1"
+  },
+  "integrations": {
+    "agentmail": {
+      "api_key": "",
+      "inbox_id": ""
+    },
+    "gmail": {
+      "enabled": false
+    },
+    "fullenrich": {
+      "api_key": ""
+    },
+    "apify": {
+      "api_token": "",
+      "max_charge_usd": 5
+    },
+    "firecrawl": {
+      "api_key": ""
+    }
+  },
+  "schedule": {
+    "inbox_scan": "07:00",
+    "job_sourcing": "04:30",
+    "gmail_sent_poll_minutes": 15
+  }
+}

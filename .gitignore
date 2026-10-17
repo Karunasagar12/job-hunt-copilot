@@ -1,5 +1,5 @@
-﻿# Private state and credentials
-data/
+# Private state and credentials
+/data/
 .env*
 *.db
 *.db-shm
@@ -41,3 +41,7 @@ Desktop.ini
 logs/
 tmp/
 *.tmp
+
+# Temporary legacy paths until profile configuration is wired
+/knowledge/
+/design/*.jpg

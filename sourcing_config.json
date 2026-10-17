@@ -1,0 +1,72 @@
+{
+  "actor": "automation-lab~linkedin-jobs-scraper",
+  "monthly_budget_usd": 5.0,
+  "titles": [
+    "Data Scientist",
+    "Senior Data Scientist",
+    "Machine Learning Engineer",
+    "Data Science Manager",
+    "Analytics Engineer",
+    "AI Engineer",
+    "Product Manager",
+    "Product Owner"
+  ],
+  "locations": [
+    {
+      "linkedin_location": "United Arab Emirates",
+      "geo": "gcc",
+      "remote_only": false,
+      "max_jobs": 25,
+      "max_charge_usd": 0.02
+    },
+    {
+      "linkedin_location": "Saudi Arabia",
+      "geo": "gcc",
+      "remote_only": false,
+      "max_jobs": 25,
+      "max_charge_usd": 0.02
+    },
+    {
+      "linkedin_location": "Qatar",
+      "geo": "gcc",
+      "remote_only": false,
+      "max_jobs": 25,
+      "max_charge_usd": 0.02
+    },
+    {
+      "linkedin_location": "France",
+      "geo": "eu",
+      "remote_only": false,
+      "max_jobs": 25,
+      "max_charge_usd": 0.02
+    },
+    {
+      "linkedin_location": "European Union",
+      "geo": "eu",
+      "remote_only": true,
+      "max_jobs": 25,
+      "max_charge_usd": 0.02
+    },
+    {
+      "linkedin_location": "Germany",
+      "geo": "eu",
+      "remote_only": false,
+      "max_jobs": 25,
+      "max_charge_usd": 0.02
+    },
+    {
+      "linkedin_location": "Spain",
+      "geo": "eu",
+      "remote_only": false,
+      "max_jobs": 25,
+      "max_charge_usd": 0.02
+    },
+    {
+      "linkedin_location": "Ireland",
+      "geo": "eu",
+      "remote_only": false,
+      "max_jobs": 25,
+      "max_charge_usd": 0.02
+    }
+  ]
+}

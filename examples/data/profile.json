@@ -1,0 +1,39 @@
+{
+  "name": "Jane Doe",
+  "file_prefix": "JaneDoe",
+  "email": "jane.doe@example.com",
+  "linkedin": "linkedin.com/in/janedoe-example",
+  "github": "",
+  "headline": "Senior Data Scientist",
+  "signoff_name": "Jane",
+  "signoff_title": "Senior Data Scientist",
+  "photo": "photo.jpg",
+  "timezone": "Europe/Paris",
+  "regions": [
+    {
+      "id": "eu",
+      "label": "Europe",
+      "keywords": [
+        "paris",
+        "berlin",
+        "london",
+        "europe",
+        "france",
+        "germany"
+      ],
+      "phone": "+33 1 00 00 00 00",
+      "location": "Paris, France",
+      "salary_sites": [
+        "glassdoor.com"
+      ]
+    }
+  ],
+  "default_region": "eu",
+  "extra_agencies": [],
+  "target_titles": [
+    "Senior Data Scientist"
+  ],
+  "target_locations": [
+    "Paris, France"
+  ]
+}
