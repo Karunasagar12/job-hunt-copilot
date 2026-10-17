@@ -121,3 +121,15 @@ def get_photo():
     if photo is None:
         return _err('Photo not found', 404)
     return send_file(photo)
+
+
+@settings_bp.post('/api/settings/llm/test')
+def test_llm():
+    import llm_client
+    try:
+        llm_client.call_llm('Reply with OK', 'ping', max_tokens=10, timeout=30)
+        return jsonify({'ok': True})
+    except llm_client.LLMError as exc:
+        return jsonify({'ok': False, 'kind': exc.kind, 'message': str(exc)})
+    except Exception:
+        return jsonify({'ok': False, 'kind': 'unknown', 'message': 'The model test failed. Check Settings and try again.'})

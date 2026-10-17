@@ -1,0 +1,5 @@
+Fictional offline demonstration; no live market estimate.
+Market range: Base: 60000-75000 EUR | Total: 60000-80000 EUR
+Recommended quote: 70000 EUR
+Reasoning: example data scientist role in Paris.
+Negotiation notes: confirm scope before discussing compensation.

@@ -1,0 +1,14 @@
+NAME = 'Jane Doe'
+EMAIL = 'jane.doe@example.com'
+PHONE = '+33 1 00 00 00 00'
+LOCATION = 'Paris, France'
+LINKEDIN = 'linkedin.com/in/jane-doe-example'
+GITHUB = 'github.com/jane-doe-example'
+SUMMARY = 'Data scientist focused on forecasting, model evaluation, and reproducible analytics using Python and SQL.'
+EXPERIENCE = [{'title': 'Senior Data Scientist', 'company': 'Acme Analytics', 'location': 'Paris, France', 'dates': '01/2022 - Present', 'bullets': ['Improved demand forecasts with 12% lower MAE on the fictional held-out retail benchmark.', 'Automated evaluation for 6 recurring reports.']}, {'title': 'Data Scientist', 'company': 'Northwind Health', 'location': 'Paris, France', 'dates': '07/2019 - 12/2021', 'bullets': ['Added 18 validation checks for a synthetic scheduling dataset.']}]
+EDUCATION = [{'degree': 'MSc Data Science', 'school': 'Example University of Paris, France', 'dates': '09/2017 - 06/2019', 'detail': 'Statistical learning and model evaluation.'}]
+SKILLS = {'Programming': 'Python, SQL', 'Tools': 'pandas, scikit-learn, Docker, PostgreSQL'}
+PROJECTS = ['Synthetic Transit Forecast: example demand forecast using generated passenger counts.']
+CERTS = ['Example analytics certificate, Fictional learning provider, 2021']
+JOB_COMPANY = 'Acme Corp'
+JOB_TITLE = 'Senior DS'

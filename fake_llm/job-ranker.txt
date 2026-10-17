@@ -1,0 +1,1 @@
+{"fit_score": 85, "reasons": ["Relevant forecasting experience"], "concerns": []}

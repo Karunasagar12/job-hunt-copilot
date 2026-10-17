@@ -1,0 +1,3 @@
+SCORE: 42/50
+VERDICT: PASS
+Fictional example matches the required format.

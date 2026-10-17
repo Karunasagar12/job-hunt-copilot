@@ -48,7 +48,7 @@ REQUIRED_KNOWLEDGE = (
 
 
 def setup_missing() -> list[str]:
-    missing = []
+    missing = [] if llm_client.is_configured() else ["llm"]
     try:
         prof.load_profile()
     except prof.ProfileError:

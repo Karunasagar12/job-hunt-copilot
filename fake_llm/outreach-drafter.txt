@@ -1,0 +1,65 @@
+GENERAL TEMPLATE — No Specific Contact
+Use for: cold outreach to unknown hiring manager or recruiter
+
+-- FOR HIRING MANAGER --
+── EMAIL 1 (Day 0) ──
+Subject: Senior DS at Acme Corp
+Hi there, I am interested in the Senior DS role at Acme Corp. I work with Python and forecasting. Could we discuss the role?
+Kind regards,
+Jane Doe
+── LINKEDIN CONNECTION REQUEST ──
+Hi there, I would welcome connecting about data science at Acme Corp.
+── LINKEDIN DM ──
+Thanks for connecting, there. Could we discuss the Senior DS role?
+── EMAIL 2 (Day 5) ──
+Subject: Re: Senior DS at Acme Corp
+Hi there, following up on the Senior DS opportunity. Happy to share more about my forecasting work.
+Kind regards,
+Jane Doe
+── EMAIL 3 (Day 12) ──
+Subject: Re: Senior DS at Acme Corp
+Hi there, one final note about the Senior DS role. Thank you for your time.
+Kind regards,
+Jane Doe
+
+-- FOR RECRUITER --
+── EMAIL 1 (Day 0) ──
+Subject: Senior DS at Acme Corp
+Hi there, I am interested in the Senior DS role at Acme Corp. I work with Python and forecasting. Could we discuss the role?
+Kind regards,
+Jane Doe
+── LINKEDIN CONNECTION REQUEST ──
+Hi there, I would welcome connecting about data science at Acme Corp.
+── LINKEDIN DM ──
+Thanks for connecting, there. Could we discuss the Senior DS role?
+── EMAIL 2 (Day 5) ──
+Subject: Re: Senior DS at Acme Corp
+Hi there, following up on the Senior DS opportunity. Happy to share more about my forecasting work.
+Kind regards,
+Jane Doe
+── EMAIL 3 (Day 12) ──
+Subject: Re: Senior DS at Acme Corp
+Hi there, one final note about the Senior DS role. Thank you for your time.
+Kind regards,
+Jane Doe
+
+CONTACT: Alex Smith — Recruiter
+── EMAIL 1 (Day 0) ──
+Subject: Senior DS at Acme Corp
+Hi Alex, I am interested in the Senior DS role at Acme Corp. I work with Python and forecasting. Could we discuss the role?
+Kind regards,
+Jane Doe
+── LINKEDIN CONNECTION REQUEST ──
+Hi Alex, I would welcome connecting about data science at Acme Corp.
+── LINKEDIN DM ──
+Thanks for connecting, Alex. Could we discuss the Senior DS role?
+── EMAIL 2 (Day 5) ──
+Subject: Re: Senior DS at Acme Corp
+Hi Alex, following up on the Senior DS opportunity. Happy to share more about my forecasting work.
+Kind regards,
+Jane Doe
+── EMAIL 3 (Day 12) ──
+Subject: Re: Senior DS at Acme Corp
+Hi Alex, one final note about the Senior DS role. Thank you for your time.
+Kind regards,
+Jane Doe
