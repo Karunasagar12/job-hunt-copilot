@@ -1,6 +1,7 @@
 """Validated candidate profiles and their generated identity document."""
 from copy import deepcopy
 from datetime import datetime, timezone
+from io import BytesIO
 import json
 import os
 from pathlib import Path
@@ -8,6 +9,8 @@ import re
 import tempfile
 import unicodedata
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from PIL import Image
 
 import paths
 
@@ -57,6 +60,29 @@ def _strings(value, field, *, lowercase=False):
     return [(item.lower() if lowercase else item) for item in items if item]
 
 
+MAX_PHOTO_BYTES = 5 * 1024 * 1024
+
+
+def validate_photo(blob, extension):
+    """Require a bounded, decodable JPEG or PNG matching its file extension."""
+    expected = {'.jpg': 'JPEG', '.jpeg': 'JPEG', '.png': 'PNG'}.get(extension.lower())
+    if expected is None:
+        raise ProfileError('Photo must be JPG, JPEG or PNG', 'photo')
+    if len(blob) > MAX_PHOTO_BYTES:
+        raise ProfileError('Photo must be at most 5 MB', 'photo')
+    try:
+        with Image.open(BytesIO(blob), formats=['JPEG', 'PNG']) as image:
+            if image.format != expected:
+                raise ProfileError('Photo content must match its extension', 'photo')
+            image.verify()
+        with Image.open(BytesIO(blob), formats=['JPEG', 'PNG']) as image:
+            image.load()
+    except ProfileError:
+        raise
+    except (OSError, ValueError, SyntaxError, Image.DecompressionBombError) as exc:
+        raise ProfileError('Invalid photo file', 'photo') from exc
+
+
 def _photo(value):
     if not value:
         return None
@@ -65,6 +91,10 @@ def _photo(value):
         candidate = (root / value).resolve()
         if not candidate.is_relative_to(root) or not candidate.is_file():
             raise ProfileError('photo must be an existing file inside DATA_DIR', 'photo')
+        with candidate.open('rb') as handle:
+            validate_photo(handle.read(MAX_PHOTO_BYTES + 1), candidate.suffix)
+    except ProfileError:
+        raise
     except (OSError, ValueError) as exc:
         raise ProfileError('photo must be an existing file inside DATA_DIR', 'photo') from exc
     return candidate

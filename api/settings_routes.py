@@ -65,15 +65,11 @@ def upload_photo():
     extension = PHOTO_EXT.get(Path(photo.filename).suffix.lower())
     if extension is None:
         return _err('Photo must be JPG, JPEG or PNG', field='photo')
-    blob = photo.read(5 * 1024 * 1024 + 1)
-    if len(blob) > 5 * 1024 * 1024:
-        return _err('Photo must be at most 5 MB', field='photo')
-    if extension == '.jpg':
-        valid = blob.startswith(b'\xff\xd8\xff') and blob.endswith(b'\xff\xd9')
-    else:
-        valid = blob.startswith(b'\x89PNG\r\n\x1a\n')
-    if not valid:
-        return _err('Invalid photo file', field='photo')
+    blob = photo.read(prof.MAX_PHOTO_BYTES + 1)
+    try:
+        prof.validate_photo(blob, extension)
+    except prof.ProfileError as exc:
+        return _err(str(exc), field=exc.field)
     filename = 'photo' + extension
     root = paths.data().resolve()
     target = paths.data(filename).resolve()

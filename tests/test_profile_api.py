@@ -74,8 +74,10 @@ def test_photo_round_trip(client, filename, target):
     if target.endswith('jpg'):
         blob = (paths.repo_dir() / 'examples/data/photo.jpg').read_bytes()
     else:
-        import base64
-        blob = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=')
+        from PIL import Image
+        image = BytesIO()
+        Image.new('RGB', (1, 1)).save(image, format='PNG')
+        blob = image.getvalue()
     response = client.post('/api/profile/photo', data={'photo': (BytesIO(blob), filename)})
     assert response.status_code == 200
     assert response.json['photo'] == target
@@ -174,3 +176,41 @@ def test_job_request_limit_returns_json(client):
     response = client.post('/api/jobs', json={'jd_text': 'x' * (12 * 1024 * 1024)})
     assert response.status_code == 413
     assert response.is_json and response.json['error']
+
+
+@pytest.mark.parametrize('filename', ['.env', 'settings.json'])
+def test_profile_rejects_non_image_photo_file(client, filename):
+    p = prof.load_profile()
+    paths.data(filename).write_text('harmless-private-sentinel', encoding='utf-8')
+    p['photo'] = filename
+    response = client.put('/api/profile', json=p)
+    assert response.status_code == 400
+    assert response.json['field'] == 'photo'
+
+
+@pytest.mark.parametrize('filename', ['.env', 'settings.json'])
+def test_photo_get_never_serves_non_image_profile_path(client, filename):
+    import json
+    p = prof.load_profile()
+    paths.data(filename).write_text('harmless-private-sentinel', encoding='utf-8')
+    p['photo'] = filename
+    paths.profile_path().write_text(json.dumps(p), encoding='utf-8')
+    response = client.get('/api/profile/photo')
+    assert response.status_code == 404
+    assert b'harmless-private-sentinel' not in response.data
+
+
+def test_photo_rejects_signature_only_png_without_replacing_photo(client):
+    before = paths.data('photo.jpg').read_bytes()
+    response = client.post('/api/profile/photo', data={'photo': (BytesIO(b'\x89PNG\r\n\x1a\n'), 'broken.png')})
+    assert response.status_code == 400
+    assert response.json['field'] == 'photo'
+    assert paths.data('photo.jpg').read_bytes() == before
+    assert not paths.data('photo.png').exists()
+
+
+def test_photo_get_never_serves_non_image_bytes_with_image_suffix(client):
+    paths.data('photo.jpg').write_bytes(b'harmless-private-sentinel')
+    response = client.get('/api/profile/photo')
+    assert response.status_code == 404
+    assert b'harmless-private-sentinel' not in response.data

@@ -143,7 +143,7 @@ def test_photo_path_and_containment(base, tmp_path, monkeypatch):
     monkeypatch.setenv('DATA_DIR', str(tmp_path))
     base['photo'] = ''
     assert prof.photo_path(base) is None
-    (tmp_path / 'photo.jpg').write_bytes(b'photo')
+    (tmp_path / 'photo.jpg').write_bytes((paths.repo_dir() / 'examples/data/photo.jpg').read_bytes())
     base['photo'] = 'photo.jpg'
     assert prof.photo_path(prof.validate(base)) == tmp_path / 'photo.jpg'
     outside = tmp_path.parent / 'outside-photo.jpg'
