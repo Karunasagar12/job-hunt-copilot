@@ -1,5 +1,9 @@
 import os
 import tempfile
+import shutil
+import pytest
+import paths
+import profile as prof
 from pathlib import Path
 
 os.environ.setdefault("FIRECRAWL_API_KEY", "fc-test-key-for-mocked-tests")
@@ -8,6 +12,16 @@ import api.app as app_module  # noqa: E402
 
 db = app_module.db
 app_module.app.config["TESTING"] = True
+
+
+@pytest.fixture(autouse=True)
+def configured_regions(tmp_path, monkeypatch):
+    shutil.copytree(paths.repo_dir() / "examples/data", tmp_path, dirs_exist_ok=True)
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    p = prof.load_profile()
+    p["regions"] = [dict(prof.REGION_PRESETS[key]) for key in ("eu", "india", "gcc")]
+    p["regions"][2]["location"] = "UAE"
+    prof.save_profile(p)
 
 
 class _FakeFirecrawlResponse:
@@ -38,8 +52,9 @@ def _install_fake_llm(monkeypatch, estimate):
 
 def _setup_knowledge_files(monkeypatch):
     tmp = Path(tempfile.mkdtemp())
+    shutil.copytree(paths.data(), tmp, dirs_exist_ok=True)
     knowledge_dir = tmp / "knowledge"
-    knowledge_dir.mkdir()
+    knowledge_dir.mkdir(exist_ok=True)
     (knowledge_dir / "career-master.md").write_text("Career knowledge base", encoding="utf-8")
     (knowledge_dir / "employment-master.md").write_text("Employment knowledge base", encoding="utf-8")
     monkeypatch.setenv("DATA_DIR", str(tmp))
@@ -74,7 +89,7 @@ def test_search_firecrawl_salary_india_builds_query_and_joins_snippets(monkeypat
         "Content-Type": "application/json",
     }
     assert calls[0]["json"] == {
-        "query": "AmbitionBox Example Health Project Manager salary India",
+        "query": "Example Health Project Manager salary India (site:ambitionbox.com OR site:glassdoor.co.in)",
         "limit": 5,
     }
     assert "scrapeOptions" not in calls[0]["json"]
@@ -96,7 +111,7 @@ def test_search_firecrawl_salary_gcc_uses_bayt_and_uae(monkeypatch):
     result = app_module._search_firecrawl_salary("Emirates NBD", "Project Manager", "gcc")
 
     assert result == "Bayt Emirates NBD salary: Project Manager salary range AED 35k-45k monthly."
-    assert calls[0]["json"]["query"] == "Bayt Emirates NBD Project Manager salary UAE"
+    assert calls[0]["json"]["query"] == "Emirates NBD Project Manager salary UAE (site:bayt.com OR site:glassdoor.com)"
 
 
 def test_search_firecrawl_salary_eu_uses_glassdoor_and_europe(monkeypatch):
@@ -114,10 +129,10 @@ def test_search_firecrawl_salary_eu_uses_glassdoor_and_europe(monkeypatch):
     result = app_module._search_firecrawl_salary("Spotify", "Engineering Manager", "eu")
 
     assert result == "Glassdoor Spotify salary: Engineering Manager total pay is EUR150k-EUR190k."
-    assert calls[0]["json"]["query"] == "Glassdoor Spotify Engineering Manager salary Europe"
+    assert calls[0]["json"]["query"] == "Spotify Engineering Manager salary Europe (site:glassdoor.com OR site:levels.fyi)"
 
 
-def test_search_firecrawl_salary_unknown_geo_defaults_to_glassdoor_and_empty_geo_term(monkeypatch):
+def test_search_firecrawl_salary_removed_geo_uses_default_region(monkeypatch):
     monkeypatch.setenv("FIRECRAWL_API_KEY", "fc-key")
     calls = []
 
@@ -128,7 +143,7 @@ def test_search_firecrawl_salary_unknown_geo_defaults_to_glassdoor_and_empty_geo
     monkeypatch.setattr(app_module.requests, "post", fake_post)
 
     result = app_module._search_firecrawl_salary("Acme", "Role", "us")
-    assert calls[0]["json"]["query"] == "Glassdoor Acme Role salary"
+    assert calls[0]["json"]["query"] == "Acme Role salary Europe (site:glassdoor.com OR site:levels.fyi)"
     assert result == "T: D"
 
 
@@ -201,7 +216,7 @@ def test_search_firecrawl_salary_logs_warning_on_failure(monkeypatch):
     assert result == ""
     assert len(warnings) == 1
     assert "Firecrawl salary search failed for query" in warnings[0][0]
-    assert "Glassdoor Acme Director salary " in warnings[0][1][0]
+    assert "Acme Director salary Europe (site:glassdoor.com OR site:levels.fyi)" in warnings[0][1][0]
 
 
 def test_search_firecrawl_salary_returns_empty_when_api_key_missing(monkeypatch):
@@ -238,7 +253,7 @@ def test_salary_estimate_endpoint_includes_salary_research_in_prompt(monkeypatch
     payload = response.get_json()
     assert payload == {"estimate": estimate, "cached": False}
     assert salary_research in recorder["prompt"]
-    assert "SALARY RESEARCH (Glassdoor/Bayt/AmbitionBox, live search results):" in recorder["prompt"]
+    assert "SALARY RESEARCH (live search results):" in recorder["prompt"]
     assert "prioritize the live salary research above when present" in recorder["prompt"]
 
 

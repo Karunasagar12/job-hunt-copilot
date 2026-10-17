@@ -29,7 +29,9 @@ def test_list_and_validation():
     assert [r["linkedin_job_id"] for r in client.get("/api/sourced-jobs?geo=eu").get_json()] == ["9400000001"]
     assert len(client.get("/api/sourced-jobs").get_json()) == 2
     assert client.get("/api/sourced-jobs?status=bogus").status_code == 400
-    assert client.get("/api/sourced-jobs?geo=us").status_code == 400
+    response = client.get("/api/sourced-jobs?geo=us")
+    assert response.status_code == 200
+    assert response.get_json() == []
 
 
 def test_latest_run_null_then_present():

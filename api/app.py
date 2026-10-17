@@ -16,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import paths
+import profile as prof
 from dotenv import load_dotenv
 load_dotenv(paths.repo_dir() / ".env")
 load_dotenv(paths.data(".env"))
@@ -31,7 +32,11 @@ import llm_client
 import outreach_manager
 from api.utils import run_pipeline_async
 
+from api.settings_routes import settings_bp
+
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024
+app.register_blueprint(settings_bp)
 CORS(app)
 
 paths.ensure_dirs()
@@ -122,10 +127,17 @@ def create_job():
     if source_type not in ("company", "recruiter"):
         return err("source_type must be 'company' or 'recruiter'")
 
+    try:
+        p = prof.load_profile()
+    except prof.ProfileError:
+        return err("profile_not_set", 404)
+    if geo not in prof.region_ids(p) + ["auto"]:
+        return err("Unknown region")
+
     job_id = db.create_job(
         company=company_override or "Pending",
         role="Pending",
-        geography=geo if geo != "auto" else "gcc",
+        geography=geo if geo != "auto" else p["default_region"],
         source_type=source_type,
         recruiter_agency=recruiter_agency,
         jd_url=jd_url,
@@ -345,14 +357,11 @@ def download_cover_letter(job_id):
     doc.build(story)
     buf.seek(0)
 
-    def _safe_filename_part(s):
-        for ch in '"\r\n\\/:*?<>|':
-            s = s.replace(ch, "")
-        return s
-
-    company = _safe_filename_part((job.get("company") or "Company").replace(" ", "_"))
-    role = _safe_filename_part((job.get("role") or "Role").replace(" ", "_"))
-    filename = f"JaneDoe_{company}_{role}_CoverLetter.pdf"
+    from generate import output_base
+    try:
+        filename = output_base(job.get("company") or "Company", job.get("role") or "Role") + "_CoverLetter.pdf"
+    except prof.ProfileError:
+        return err("profile_not_set", 404)
     from flask import make_response
     response = make_response(buf.read())
     response.headers["Content-Type"] = "application/pdf"
@@ -1859,10 +1868,14 @@ def _search_firecrawl_salary(company, role, geo):
     api_key = os.getenv("FIRECRAWL_API_KEY")
     if not api_key:
         return ""
-    source = {"gcc": "Bayt", "india": "AmbitionBox"}.get(geo, "Glassdoor")
-    geo_term = {"gcc": "UAE", "india": "India", "eu": "Europe"}.get(geo, "")
-    query = f"{source} {company} {role} salary {geo_term}".strip()
+    query = ""
     try:
+        region = prof.get_region(geo)
+        location = region.get("location") or region["label"]
+        sites = " OR ".join(f"site:{site}" for site in region["salary_sites"])
+        query = f"{company} {role} salary {location}".strip()
+        if sites:
+            query += f" ({sites})"
         resp = requests.post(
             "https://api.firecrawl.dev/v1/search",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
@@ -1871,14 +1884,14 @@ def _search_firecrawl_salary(company, role, geo):
         )
         resp.raise_for_status()
         results = resp.json().get("data", [])
+        lines = [
+            f"{r.get('title', '')}: {r.get('description', '')}"
+            for r in results if r.get("description")
+        ]
+        return "\n".join(lines)[:2000]
     except Exception as exc:
         logger.warning("Firecrawl salary search failed for query %r: %s", query, exc)
         return ""
-    lines = [
-        f"{r.get('title', '')}: {r.get('description', '')}"
-        for r in results if r.get("description")
-    ]
-    return "\n".join(lines)[:2000]
 
 
 @app.get("/api/jobs/<int:job_id>/salary-estimate")
@@ -1903,8 +1916,12 @@ def salary_estimate(job_id):
     except OSError as exc:
         return err(f"Failed to load knowledge base: {exc}", 500)
 
-    geo = job.get("geography") or "gcc"
-    geo_label = {"gcc": "GCC / UAE (Dubai)", "india": "India", "eu": "Europe"}.get(geo, geo)
+    geo = job.get("geography")
+    try:
+        region = prof.get_region(geo)
+    except prof.ProfileError:
+        return err("profile_not_set", 404)
+    geo_label = region.get("location") or region["label"]
     ats = job.get("ats_score")
     profile_note = f"ATS score for this application: {ats}/50." if ats else ""
 
@@ -1916,7 +1933,7 @@ def salary_estimate(job_id):
     )
     salary_research = _search_firecrawl_salary(job.get("company") or "", job["role"], geo)
     salary_research_block = (
-        f"\n\nSALARY RESEARCH (Glassdoor/Bayt/AmbitionBox, live search results):\n{salary_research}\n"
+        f"\n\nSALARY RESEARCH (live search results):\n{salary_research}\n"
         if salary_research else ""
     )
 
@@ -1924,7 +1941,7 @@ def salary_estimate(job_id):
         f"You are a compensation advisor helping a senior candidate negotiate salary.\n\n"
         f"ROLE: {job['role']}\n"
         f"COMPANY: {job.get('company', 'Unknown')}\n"
-        f"GEOGRAPHY: {geo_label}\n"
+        f"LOCATION: {geo_label}\n"
         f"{profile_note}"
         f"{company_block}"
         f"{salary_research_block}\n"
@@ -1988,8 +2005,6 @@ def list_sourced_jobs():
     if not statuses or set(statuses) - _SOURCED_STATUSES:
         return err("status must be a comma list of: " + ", ".join(sorted(_SOURCED_STATUSES)))
     geo = request.args.get("geo") or None
-    if geo not in (None, "gcc", "eu"):
-        return err("geo must be gcc or eu")
     return jsonify(db.get_sourced_jobs(statuses, geo))
 
 
