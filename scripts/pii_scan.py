@@ -40,6 +40,13 @@ def git(*args):
     return subprocess.run(['git', *args], check=True, capture_output=True, cwd=ROOT).stdout
 
 
+def decode_blob(data):
+    try:
+        return data.decode('utf-8')
+    except UnicodeDecodeError:
+        return data.decode('latin1')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--history', action='store_true', help='also scan commit authors and messages')
@@ -60,12 +67,20 @@ def main():
         if path.is_symlink() or not path.is_file():
             continue
         data = path.read_bytes()
-        try:
-            text = data.decode('utf-8')
-        except UnicodeDecodeError:
-            text = data.decode('latin1')
-        for line, term in scan_text(text, terms, allowed):
+        for line, term in scan_text(decode_blob(data), terms, allowed):
             hits.add((path.as_posix(), line, term))
+    # Inspect the index independently: a local edit or deletion may hide staged data.
+    for entry in git('ls-files', '--stage', '-z').split(b'\0'):
+        if not entry:
+            continue
+        metadata, raw_path = entry.split(b'\t', 1)
+        mode, object_id, _stage = metadata.split()
+        if mode == b'160000':  # Submodules point to commits rather than file blobs.
+            continue
+        data = git('cat-file', 'blob', object_id.decode('ascii'))
+        path = Path(os.fsdecode(raw_path)).as_posix()
+        for line, term in scan_text(decode_blob(data), terms, allowed):
+            hits.add((path, line, term))
     if args.history:
         commits = git('rev-list', '--all').splitlines()
         for commit in commits:

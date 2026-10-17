@@ -91,3 +91,26 @@ def test_history_scans_author_and_message_without_echoing_message(tmp_path):
     assert all(line.startswith('history/') and line.endswith(':secretname')
                for line in result.stdout.splitlines())
     assert 'privatecontext' not in result.stdout
+
+
+def test_cli_scans_index_when_worktree_is_cleaned_or_deleted(tmp_path):
+    (tmp_path / 'scripts').mkdir()
+    fixture_script = tmp_path / 'scripts' / 'pii_scan.py'
+    shutil.copyfile(SCRIPT, fixture_script)
+    git(tmp_path, 'init', '-b', 'main')
+    cleaned = tmp_path / 'cleaned.txt'
+    removed = tmp_path / 'removed.txt'
+    cleaned.write_text('secretname', encoding='utf-8')
+    removed.write_bytes(b'\x00secretname\xff')
+    git(tmp_path, 'add', 'cleaned.txt', 'removed.txt')
+    cleaned.write_text('safe', encoding='utf-8')
+    removed.unlink()
+    denylist = tmp_path / '.git' / 'terms.txt'
+    denylist.write_text('secretname', encoding='utf-8')
+    env = {**os.environ, 'PII_DENYLIST': str(denylist)}
+    result = subprocess.run([sys.executable, str(fixture_script)], cwd=ROOT,
+                            env=env, capture_output=True, text=True)
+    assert result.returncode == 1
+    assert set(result.stdout.splitlines()) == {
+        'cleaned.txt:1:secretname', 'removed.txt:1:secretname'
+    }
