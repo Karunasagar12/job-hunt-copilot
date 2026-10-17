@@ -27,12 +27,15 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
-import db
 import paths
-import llm_client
 
 load_dotenv(paths.repo_dir() / ".env")
 load_dotenv(paths.data(".env"))
+
+# Database configuration is captured on import, after both dotenv files.
+import db
+import llm_client
+
 paths.ensure_dirs()
 db.init_db()
 

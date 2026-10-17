@@ -89,3 +89,28 @@ def test_gmail_paths_follow_data_dir_and_overrides(monkeypatch, tmp_path):
     assert gmail_client._credentials_path() == absolute
     monkeypatch.setenv('DATA_DIR', str(tmp_path / 'second'))
     assert gmail_client._token_path() == tmp_path / 'second' / 'alternate' / 'token.json'
+
+
+def test_generate_loads_dotenv_data_and_db_paths_before_db_import(tmp_path):
+    import shutil
+
+    root = Path(__file__).resolve().parents[1]
+    for filename in ('generate.py', 'paths.py', 'db.py'):
+        shutil.copyfile(root / filename, tmp_path / filename)
+    configured_data = tmp_path / 'configured-data'
+    configured_data.mkdir()
+    configured_db = configured_data / 'configured.db'
+    (tmp_path / '.env').write_text(f'DATA_DIR={configured_data.as_posix()}\n', encoding='utf-8')
+    (configured_data / '.env').write_text(f'DB_PATH={configured_db.as_posix()}\n', encoding='utf-8')
+    env = dict(os.environ, PYTHONPATH=str(root))
+    env.pop('DATA_DIR', None)
+    env.pop('DB_PATH', None)
+    script = (
+        'import generate, paths, db; '
+        f'assert paths.data_dir() == paths.Path({str(configured_data)!r}); '
+        f'assert paths.Path(db.DB_PATH) == paths.Path({str(configured_db)!r}), db.DB_PATH; '
+        f'assert paths.Path({str(configured_db)!r}).is_file()'
+    )
+    result = subprocess.run([sys.executable, '-c', script], cwd=tmp_path, env=env, capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not (tmp_path / 'data').exists()
