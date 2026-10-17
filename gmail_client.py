@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import logging
 import os
+import paths
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -35,7 +36,6 @@ SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
 ]
 
-_PROJECT_ROOT = Path(__file__).resolve().parent
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -43,8 +43,8 @@ def _resolve_path_from_env(env_var: str, default_filename: str) -> Path:
     raw_path = os.getenv(env_var)
     if raw_path:
         path = Path(raw_path).expanduser()
-        return path if path.is_absolute() else _PROJECT_ROOT / path
-    return _PROJECT_ROOT / default_filename
+        return path if path.is_absolute() else paths.data_dir() / path
+    return paths.gmail_dir() / default_filename
 
 
 def _credentials_path() -> Path:
@@ -116,7 +116,7 @@ def _get_signature(geo: str = "eu") -> str:
     import re
     geo_map = {"gcc": "UAE", "eu": "EU", "india": "India"}
     fname = geo_map.get(geo.lower(), "EU")
-    sig_path = _PROJECT_ROOT / "signatures" / "Final" / f"Signature_{fname}.html"
+    sig_path = paths.repo_dir() / "signatures" / "Final" / f"Signature_{fname}.html"
     try:
         html = sig_path.read_text(encoding="utf-8")
         m = re.search(r"<body[^>]*>(.*)</body>", html, re.DOTALL | re.IGNORECASE)

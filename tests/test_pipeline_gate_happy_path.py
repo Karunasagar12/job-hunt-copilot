@@ -6,7 +6,7 @@ import db
 
 def test_run_single_job_passes_gate_on_first_attempt_no_retry(monkeypatch, tmp_path):
     import generate
-    monkeypatch.setattr(generate, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr(generate.paths, "output_dir", lambda: tmp_path)
     fake_data_module = (
         "JOB_COMPANY = 'Acme Corp'\n"
         "JOB_TITLE = 'Product Manager'\n"

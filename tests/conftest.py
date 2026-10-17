@@ -1,5 +1,7 @@
 import os
 import sys
+import shutil
+from pathlib import Path
 import tempfile
 
 import pytest
@@ -11,8 +13,12 @@ os.makedirs(TEST_ROOT, exist_ok=True)
 os.environ["TMP"] = TEST_ROOT
 os.environ["TEMP"] = TEST_ROOT
 tempfile.tempdir = TEST_ROOT
-DB_PATH = os.path.join(TEST_ROOT, "test_pipeline.db")
-os.environ.setdefault("DB_PATH", DB_PATH)
+DATA_DIR = tempfile.mkdtemp(prefix="data-", dir=TEST_ROOT)
+shutil.copytree(Path(__file__).resolve().parents[1] / "examples" / "data", DATA_DIR, dirs_exist_ok=True)
+os.environ["DATA_DIR"] = DATA_DIR
+DB_PATH = os.path.join(DATA_DIR, "pipeline.db")
+os.environ["DB_PATH"] = DB_PATH
+os.environ.setdefault("LLM_PROVIDER", "fake")
 
 # ponytail: centralized here (same reasoning as DB_PATH above) so every test
 # file gets a "configured" AgentMail env by default without its own guard --

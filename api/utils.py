@@ -4,9 +4,10 @@ import subprocess
 import sys
 import threading
 import time
-from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).parent.parent
+import paths
+
+PROJECT_ROOT = paths.repo_dir()
 
 logger = logging.getLogger("jhc.pipeline")
 

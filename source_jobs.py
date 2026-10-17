@@ -15,13 +15,15 @@ import os
 import re
 import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-load_dotenv(PROJECT_ROOT / ".env")
+import paths
+
+PROJECT_ROOT = paths.repo_dir()
+load_dotenv(paths.repo_dir() / ".env")
+load_dotenv(paths.data(".env"))
 
 import db  # noqa: E402
 import llm_client  # noqa: E402
@@ -101,7 +103,7 @@ def clean_jd(text):
 
 def build_system_prompt():
     knowledge = "\n\n".join(
-        (PROJECT_ROOT / "knowledge" / name).read_text(encoding="utf-8")
+        (paths.knowledge_dir() / name).read_text(encoding="utf-8")
         for name in ("career-master.md", "skills-master.md")
     )
     return (
@@ -261,6 +263,7 @@ def _safe_sweep():
 
 
 def run(token=None, fetch=fetch_location, call=None, now=None, config=None, usage=apify_cycle_usage_usd):
+    paths.ensure_dirs()
     db.init_db()
     config = config or load_config()
     now = now or datetime.now(timezone.utc).replace(tzinfo=None)

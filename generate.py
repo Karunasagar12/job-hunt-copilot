@@ -28,9 +28,12 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 import db
+import paths
 import llm_client
 
-load_dotenv()
+load_dotenv(paths.repo_dir() / ".env")
+load_dotenv(paths.data(".env"))
+paths.ensure_dirs()
 db.init_db()
 
 def _preflight() -> None:
@@ -38,11 +41,11 @@ def _preflight() -> None:
     # AWS_ACCESS_KEY_ID/SECRET locally) -- no need to duplicate that check here,
     # and requiring the env vars explicitly broke every job on EC2 (role-based,
     # no env vars set) after the Sprint 15 Bedrock migration.
-    skill_dir = Path("skills")
-    knowledge_dir = Path("knowledge")
-    for d, label in [(skill_dir, "skills/"), (knowledge_dir, "knowledge/")]:
+    skill_dir = paths.skills_dir()
+    knowledge_dir = paths.knowledge_dir()
+    for d in (skill_dir, knowledge_dir):
         if not d.is_dir():
-            sys.exit(f"Required directory not found: {d}/ — run from the job-hunt-system root.")
+            sys.exit(f"Required directory not found: {d}/ — configure DATA_DIR and repository assets.")
     required_knowledge = [
         "career-master.md", "employment-master.md", "education-master.md",
         "skills-master.md", "identity.md",
@@ -50,7 +53,7 @@ def _preflight() -> None:
     missing_files = [f for f in required_knowledge if not (knowledge_dir / f).exists()]
     if missing_files:
         sys.exit(f"Missing knowledge base files: {', '.join(missing_files)}")
-    photo = Path("design/Jane Doe.jpg")
+    photo = paths.data("photo.jpg")
     if not photo.exists():
         sys.exit(f"Profile photo not found at {photo} — required for PDF render.")
 
@@ -72,7 +75,6 @@ INDIA_KEYWORDS = {
     "chennai", "bangalore", "bengaluru", "mumbai", "delhi", "hyderabad", "india",
 }
 
-OUTPUT_DIR = Path("output")
 
 # ── Known recruitment agencies ────────────────────────────────────────────────
 KNOWN_AGENCIES = {
@@ -104,7 +106,7 @@ def _log(label: str, msg: str) -> None:
 #  SHARED LLM HELPER
 # ─────────────────────────────────────────────────────────────────────────────
 
-def call_llm(skill_path: str, input_text: str, knowledge: str | None = None) -> str:
+def call_llm(skill_path: str | Path, input_text: str, knowledge: str | None = None) -> str:
     skill_file = Path(skill_path)
     if not skill_file.exists():
         raise RuntimeError(f"Skill file not found: {skill_path}")
@@ -311,7 +313,7 @@ def load_knowledge(files: list[str] | None = None) -> str:
         ]
     parts = []
     for fname in files:
-        text = (Path("knowledge") / fname).read_text(encoding="utf-8")
+        text = (paths.knowledge_dir() / fname).read_text(encoding="utf-8")
         parts.append(f"# {fname}\n{text}")
     return "\n\n".join(parts)
 
@@ -338,7 +340,7 @@ def call_cv_writer(
         "or a verification report. Include all required fields and finish the module "
         "and closing fence within the response budget."
     )
-    raw = call_llm("skills/cv-writer/SKILL.md", input_text, knowledge)
+    raw = call_llm(paths.skill("cv-writer"), input_text, knowledge)
     match = re.search(r"```python\s*\n(.*?)```", raw, re.DOTALL)
     code = match.group(1).strip() if match else raw.strip()
     try:
@@ -367,7 +369,7 @@ def call_ats_scorer(data_module_code: str, jd_text: str) -> tuple[int, str, str]
         "Omit per-keyword tables and lists of verified claims so the complete result fits "
         "within the response budget."
     )
-    report = call_llm("skills/ats-scorer/SKILL.md", input_text, full_knowledge)
+    report = call_llm(paths.skill("ats-scorer"), input_text, full_knowledge)
     # Case-insensitive and tolerant of an "ATS " prefix -- the skill instructs the exact
     # literal "SCORE: XX/50" / "VERDICT: PASS", but the LLM doesn't always comply exactly
     # (observed real output: "**ATS Score: 42/50**", "### Verdict: PASS"), which silently
@@ -463,7 +465,7 @@ def render_pdf(data_module_code: str, output_path: str, agency_name: str | None 
         spec = importlib.util.spec_from_file_location("resume_data", tmp_path)
         data = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(data)
-        data.PHOTO = str(Path("design/Jane Doe.jpg").resolve())
+        data.PHOTO = str(paths.data("photo.jpg").resolve())
         from design.resume_design_base import build
         build(data, output_path)
         return verify_ats_parseability(output_path, getattr(data, "NAME", ""), getattr(data, "EMAIL", ""), agency_name)
@@ -475,7 +477,7 @@ def render_pdf(data_module_code: str, output_path: str, agency_name: str | None 
 
 def call_cover_letter(jd_text: str, knowledge: str) -> str:
     return call_llm(
-        "skills/cover-letter-writer/SKILL.md",
+        paths.skill("cover-letter-writer"),
         f"Write a cover letter for this JD:\n\n{jd_text}",
         knowledge,
     )
@@ -488,7 +490,7 @@ def call_outreach(jd_text: str, person_profile: dict, knowledge: str) -> str:
         f"## CONTACT PROFILE\n{profile_text}\n\n"
         f"## JOB DESCRIPTION\n{jd_text}"
     )
-    return call_llm("skills/outreach-drafter/SKILL.md", input_text, knowledge)
+    return call_llm(paths.skill("outreach-drafter"), input_text, knowledge)
 
 
 def call_outreach_template(jd_text: str, company: str, role: str, knowledge: str) -> str:
@@ -500,12 +502,12 @@ def call_outreach_template(jd_text: str, company: str, role: str, knowledge: str
         f"Follow the output format exactly as specified in the skill.\n\n"
         f"## JOB DESCRIPTION\n{jd_text}"
     )
-    return call_llm("skills/outreach-drafter/SKILL.md", input_text, knowledge)
+    return call_llm(paths.skill("outreach-drafter"), input_text, knowledge)
 
 
 def call_humanizer(outreach_text: str) -> str:
     return call_llm(
-        "skills/humanizer/SKILL.md",
+        paths.skill("humanizer"),
         outreach_text,
         knowledge=None,
     )
@@ -723,8 +725,8 @@ def run_single_job(
         # 5. Extract meta, create folder ──────────────────────────────────────
         company, role = extract_job_meta(data_module_code)
         base = f"JaneDoe_{make_slug(company)}_{make_slug(role)}"
-        job_dir = OUTPUT_DIR / f"{make_slug(company)}_{make_slug(role)}"
-        job_dir.mkdir(exist_ok=True)
+        job_dir = paths.output_dir() / f"{make_slug(company)}_{make_slug(role)}"
+        job_dir.mkdir(parents=True, exist_ok=True)
 
         # 6. Save ATS report ──────────────────────────────────────────────────
         if corrections:
@@ -855,7 +857,7 @@ def main() -> None:
     # ── Batch mode ───────────────────────────────────────────────────────────
     if args.batch_file:
         _preflight()
-        OUTPUT_DIR.mkdir(exist_ok=True)
+        paths.output_dir().mkdir(parents=True, exist_ok=True)
         jobs = json.loads(Path(args.batch_file).read_text(encoding="utf-8"))
         print(f"Batch mode: {len(jobs)} jobs, max 3 parallel")
 
@@ -903,7 +905,7 @@ def main() -> None:
     if len(args.person_infos) > 3:
         parser.error("maximum 3 person infos supported")
 
-    OUTPUT_DIR.mkdir(exist_ok=True)
+    paths.output_dir().mkdir(parents=True, exist_ok=True)
 
     result = run_single_job(
         jd=args.jd,

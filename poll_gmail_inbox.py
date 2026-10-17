@@ -13,6 +13,7 @@ from datetime import date
 
 import api.app as app_module
 import db
+import paths
 import gmail_client
 import inbox_classifier
 from outreach_manager import reschedule_from_new_base
@@ -119,6 +120,7 @@ def scan_bounces():
 
 
 def run_inbox_scan():
+    paths.ensure_dirs()
     db.init_db()
     account_email = gmail_client.get_account_email()
     reply_count = scan_reply_threads(account_email)

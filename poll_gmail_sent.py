@@ -8,10 +8,12 @@ sharing a Gmail thread with an already-sent Email 1 are never falsely marked sen
 from datetime import datetime
 
 import db
+import paths
 import gmail_client
 
 
 def poll_sent_drafts() -> int:
+    paths.ensure_dirs()
     db.init_db()
     conn = db._get_conn()
     rows = conn.execute(

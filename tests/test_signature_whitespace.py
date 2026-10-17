@@ -36,7 +36,7 @@ def test_signature_fixture_preserves_embedded_image_cids(monkeypatch, tmp_path):
     directory.mkdir(parents=True)
     html = '<body>\n<div>Jane<br>' + ''.join(f'<img src="data:image/png;base64,{encoded}">' for _ in range(4)) + '</div>\n</body>'
     (directory / 'Signature_EU.html').write_text(html, encoding='utf-8')
-    monkeypatch.setattr(gmail_client, '_PROJECT_ROOT', tmp_path)
+    monkeypatch.setattr(gmail_client.paths, 'repo_dir', lambda: tmp_path)
     signature = gmail_client._get_signature('eu')
     assert '\n' not in signature and '<br>' in signature
     converted, images = _signature_to_cid(signature)
@@ -47,5 +47,5 @@ def test_signature_preserves_explicit_line_breaks(monkeypatch, tmp_path):
     directory = tmp_path / 'signatures' / 'Final'
     directory.mkdir(parents=True)
     (directory / 'Signature_EU.html').write_text('<body>\nName<br>\n Role\n</body>', encoding='utf-8')
-    monkeypatch.setattr(gmail_client, '_PROJECT_ROOT', tmp_path)
+    monkeypatch.setattr(gmail_client.paths, 'repo_dir', lambda: tmp_path)
     assert gmail_client._get_signature('eu') == 'Name<br>Role'

@@ -5,10 +5,12 @@ Run on a schedule via systemd timer — see deploy/saved-jobs-queue.service +
 deploy/saved-jobs-queue.timer. One row's failure never stops the rest of the batch.
 """
 import db
+import paths
 from api.utils import run_pipeline
 
 
 def drain_saved_jobs_queue() -> int:
+    paths.ensure_dirs()
     db.init_db()
     rows = db.get_pending_saved_jobs()
     processed = 0

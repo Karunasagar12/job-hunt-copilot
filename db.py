@@ -1,10 +1,11 @@
 import json
 import os
 import sqlite3
+import paths
 import threading
 from datetime import date, datetime
 
-DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "pipeline.db"))
+DB_PATH = os.getenv("DB_PATH") or str(paths.db_path())
 
 VALID_TRANSITIONS = {
     "new":        ["generating"],

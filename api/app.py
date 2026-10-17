@@ -15,8 +15,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import paths
 from dotenv import load_dotenv
-load_dotenv(Path(__file__).parent.parent / ".env")
+load_dotenv(paths.repo_dir() / ".env")
+load_dotenv(paths.data(".env"))
 
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
@@ -32,12 +34,13 @@ from api.utils import run_pipeline_async
 app = Flask(__name__)
 CORS(app)
 
+paths.ensure_dirs()
 db.init_db()
 
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = paths.repo_dir()
 
-LOG_DIR = PROJECT_ROOT / "logs"
-LOG_DIR.mkdir(exist_ok=True)
+LOG_DIR = paths.logs_dir()
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 logger = logging.getLogger("jhc")
 logger.setLevel(logging.INFO)
@@ -200,7 +203,7 @@ def _find_cv_pdf(job):
     cv_path = job.get("cv_path")
     if not cv_path:
         return None
-    job_dir = PROJECT_ROOT / cv_path
+    job_dir = paths.data_dir() / cv_path
     pdfs = list(job_dir.glob("*.pdf")) if job_dir.is_dir() else []
     return str(pdfs[0]) if pdfs else None
 
@@ -1504,8 +1507,8 @@ def _llm_redraft(entry, contact, job, feedback: str) -> tuple[str, str]:
     """Returns (new_subject, new_body). Raises on LLM/API failure — callers
     translate the exception to their own error response."""
     knowledge_files = ["career-master.md", "employment-master.md", "education-master.md", "skills-master.md", "identity.md"]
-    knowledge_base = "\n\n".join((PROJECT_ROOT / "knowledge" / f).read_text(encoding="utf-8") for f in knowledge_files)
-    skill_content = (PROJECT_ROOT / "skills" / "outreach-drafter" / "SKILL.md").read_text(encoding="utf-8")
+    knowledge_base = "\n\n".join((paths.knowledge_dir() / f).read_text(encoding="utf-8") for f in knowledge_files)
+    skill_content = paths.skill("outreach-drafter").read_text(encoding="utf-8")
 
     jd_text = job["jd_text"] or ""
     user_feedback = feedback or "Please improve the tone and make it more personalized."
@@ -1561,8 +1564,8 @@ def redraft_outreach(entry_id):
     try:
         knowledge_files = ["career-master.md", "employment-master.md", "education-master.md", "skills-master.md", "identity.md"]
         for f in knowledge_files:
-            (PROJECT_ROOT / "knowledge" / f).read_text(encoding="utf-8")
-        (PROJECT_ROOT / "skills" / "outreach-drafter" / "SKILL.md").read_text(encoding="utf-8")
+            (paths.knowledge_dir() / f).read_text(encoding="utf-8")
+        paths.skill("outreach-drafter").read_text(encoding="utf-8")
     except OSError as exc:
         return err(f"Failed to load redraft context: {exc}", 500)
 
@@ -1895,7 +1898,7 @@ def salary_estimate(job_id):
     try:
         knowledge_files = ["career-master.md", "employment-master.md"]
         knowledge_base = "\n\n".join(
-            (PROJECT_ROOT / "knowledge" / f).read_text(encoding="utf-8") for f in knowledge_files
+            (paths.knowledge_dir() / f).read_text(encoding="utf-8") for f in knowledge_files
         )
     except OSError as exc:
         return err(f"Failed to load knowledge base: {exc}", 500)

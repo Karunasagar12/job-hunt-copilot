@@ -14,7 +14,7 @@ import poll_agentmail_inbox
 def test_standalone_import_loads_dotenv_before_client(tmp_path, inherited_key):
     """Use a fresh interpreter so pytest's pre-imported client cannot mask the bug."""
     project = Path(__file__).resolve().parents[1]
-    for filename in ("poll_agentmail_inbox.py", "agentmail_client.py"):
+    for filename in ("poll_agentmail_inbox.py", "agentmail_client.py", "paths.py"):
         shutil.copyfile(project / filename, tmp_path / filename)
     (tmp_path / ".env").write_text(
         "AGENTMAIL_API_KEY=dotenv-test-key\nAGENTMAIL_INBOX_ID=dotenv-test@example.com\n",

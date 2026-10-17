@@ -41,7 +41,3 @@ Desktop.ini
 logs/
 tmp/
 *.tmp
-
-# Temporary legacy paths until profile configuration is wired
-/knowledge/
-/design/*.jpg

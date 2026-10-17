@@ -42,7 +42,7 @@ def _setup_knowledge_files(monkeypatch):
     knowledge_dir.mkdir()
     (knowledge_dir / "career-master.md").write_text("Career knowledge base", encoding="utf-8")
     (knowledge_dir / "employment-master.md").write_text("Employment knowledge base", encoding="utf-8")
-    monkeypatch.setattr(app_module, "PROJECT_ROOT", tmp)
+    monkeypatch.setenv("DATA_DIR", str(tmp))
 
 
 # ── _search_firecrawl_salary unit tests ───────────────────────────────────────
