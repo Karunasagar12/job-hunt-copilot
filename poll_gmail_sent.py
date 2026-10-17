@@ -7,8 +7,14 @@ sharing a Gmail thread with an already-sent Email 1 are never falsely marked sen
 """
 from datetime import datetime
 
-import db
+from dotenv import load_dotenv
+
 import paths
+
+load_dotenv(paths.repo_dir() / ".env")
+load_dotenv(paths.data(".env"))
+
+import db
 import gmail_client
 
 

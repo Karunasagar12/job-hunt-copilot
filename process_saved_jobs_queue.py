@@ -4,8 +4,14 @@
 Run on a schedule via systemd timer — see deploy/saved-jobs-queue.service +
 deploy/saved-jobs-queue.timer. One row's failure never stops the rest of the batch.
 """
-import db
+from dotenv import load_dotenv
+
 import paths
+
+load_dotenv(paths.repo_dir() / ".env")
+load_dotenv(paths.data(".env"))
+
+import db
 from api.utils import run_pipeline
 
 
