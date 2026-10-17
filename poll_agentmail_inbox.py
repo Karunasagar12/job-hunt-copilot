@@ -14,12 +14,12 @@ Protocol, a new scheduled script must be hand-run once against real-shaped
 data before its first timer fire, and AgentMail real outreach isn't enabled
 yet. Run manually for now: `python poll_agentmail_inbox.py`.
 """
-import os
+import settings
 import paths
 
 from dotenv import load_dotenv
 
-# The client captures its API key at import time, including for standalone runs.
+# Load both dotenv locations before importing clients for standalone runs.
 load_dotenv(paths.repo_dir() / ".env")
 load_dotenv(paths.data(".env"))
 
@@ -65,8 +65,8 @@ def scan_reply_threads(inbox_id):
 def run_agentmail_inbox_scan():
     paths.ensure_dirs()
     db.init_db()
-    inbox_id = os.getenv("AGENTMAIL_INBOX_ID", "")
-    if not inbox_id or not agentmail_client.AGENTMAIL_API_KEY:
+    inbox_id = settings.get("integrations.agentmail.inbox_id", "")
+    if not inbox_id or not agentmail_client._api_key():
         return 0
     return scan_reply_threads(inbox_id)
 

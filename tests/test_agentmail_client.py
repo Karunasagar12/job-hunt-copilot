@@ -19,7 +19,7 @@ def _mock_response(status_code, json_data=None, text="", json_exc=None):
 
 @patch("agentmail_client.requests.post")
 def test_send_email_success_calls_send_endpoint(mock_post, monkeypatch):
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(200, {"message_id": "m1", "thread_id": "t1"})
 
     result = am.send_email("idem-1", "inbox-1", "a@acme.com", "Subject", "Body text")
@@ -35,7 +35,7 @@ def test_send_email_success_calls_send_endpoint(mock_post, monkeypatch):
 
 @patch("agentmail_client.requests.post")
 def test_send_email_with_reply_to_calls_reply_endpoint(mock_post, monkeypatch):
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(200, {"message_id": "m2", "thread_id": "t1"})
 
     am.send_email("idem-2", "inbox-1", "a@acme.com", "Re: Subject", "Body", reply_to_message_id="m1")
@@ -50,7 +50,7 @@ def test_send_email_includes_both_text_and_html_body(mock_post, monkeypatch):
     as originally sent -- AgentMail's idempotency contract treats a request
     with different content (including a missing/changed html field) as a
     different request and returns 409."""
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(200, {"message_id": "m1", "thread_id": "t1"})
 
     am.send_email("idem-1", "inbox-1", "a@acme.com", "Subject", "plain body", html_body="<p>styled</p>")
@@ -65,7 +65,7 @@ def test_send_email_encodes_attachment_bytes_as_base64(mock_post, monkeypatch):
     """Attachments are passed as bytes already in memory -- this module
     never reads a file path, so a replay built from a stored snapshot is
     byte-identical to the original call."""
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(200, {"message_id": "m1", "thread_id": "t1"})
 
     am.send_email("idem-1", "inbox-1", "a@acme.com", "Subject", "Body",
@@ -80,7 +80,7 @@ def test_send_email_encodes_attachment_bytes_as_base64(mock_post, monkeypatch):
 
 @patch("agentmail_client.requests.post")
 def test_send_email_raises_definitive_error_on_4xx(mock_post, monkeypatch):
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(422, text="invalid recipient")
 
     with pytest.raises(am.AgentMailError):
@@ -93,7 +93,7 @@ def test_send_email_raises_replay_mismatch_on_409(mock_post, monkeypatch):
     -- it must never be treated as a definitive failure (the original
     attempt may have actually succeeded), and must never allow a caller to
     conclude 'failed' and permit a fresh retry."""
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(409, text="idempotency key conflict")
 
     with pytest.raises(am.AgentMailReplayMismatch):
@@ -102,7 +102,7 @@ def test_send_email_raises_replay_mismatch_on_409(mock_post, monkeypatch):
 
 @patch("agentmail_client.requests.post")
 def test_send_email_raises_ambiguous_on_5xx(mock_post, monkeypatch):
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(503, text="upstream error")
 
     with pytest.raises(am.AgentMailAmbiguous):
@@ -112,7 +112,7 @@ def test_send_email_raises_ambiguous_on_5xx(mock_post, monkeypatch):
 @patch("agentmail_client.requests.post")
 def test_send_email_raises_ambiguous_on_timeout(mock_post, monkeypatch):
     import requests
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.side_effect = requests.exceptions.Timeout("timed out")
 
     with pytest.raises(am.AgentMailAmbiguous):
@@ -125,7 +125,7 @@ def test_send_email_raises_ambiguous_on_200_with_invalid_json(mock_post, monkeyp
     -- callers only catch AgentMailError/AgentMailReplayMismatch/AgentMailAmbiguous,
     so anything else would surface as an unhandled 500 and strand the row in
     'sending' instead of 'uncertain'."""
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(200, text="not json", json_exc=ValueError("invalid json"))
 
     with pytest.raises(am.AgentMailAmbiguous):
@@ -134,7 +134,7 @@ def test_send_email_raises_ambiguous_on_200_with_invalid_json(mock_post, monkeyp
 
 @patch("agentmail_client.requests.post")
 def test_send_email_raises_ambiguous_on_200_missing_message_id(mock_post, monkeypatch):
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(200, {"thread_id": "t1"})
 
     with pytest.raises(am.AgentMailAmbiguous):
@@ -143,7 +143,7 @@ def test_send_email_raises_ambiguous_on_200_missing_message_id(mock_post, monkey
 
 @patch("agentmail_client.requests.post")
 def test_send_email_raises_ambiguous_on_200_missing_thread_id(mock_post, monkeypatch):
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(200, {"message_id": "m1"})
 
     with pytest.raises(am.AgentMailAmbiguous):
@@ -152,7 +152,7 @@ def test_send_email_raises_ambiguous_on_200_missing_thread_id(mock_post, monkeyp
 
 @patch("agentmail_client.requests.post")
 def test_send_email_raises_ambiguous_on_200_non_dict_json(mock_post, monkeypatch):
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(200, ["message_id", "thread_id"])
 
     with pytest.raises(am.AgentMailAmbiguous):
@@ -162,7 +162,7 @@ def test_send_email_raises_ambiguous_on_200_non_dict_json(mock_post, monkeypatch
 @patch("agentmail_client.requests.post")
 def test_send_email_well_formed_200_still_returns_ids(mock_post, monkeypatch):
     """Regression guard: the new validation must not reject a normal response."""
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(200, {"message_id": "m1", "thread_id": "t1"})
 
     result = am.send_email("idem-1", "inbox-1", "a@acme.com", "Subject", "Body")
@@ -175,7 +175,7 @@ def test_send_email_pdf_then_extra_attachments_verbatim(mock_post, monkeypatch):
     """extra_attachments (inline CID signature images) are appended AFTER the
     CV, byte-for-byte as given -- never re-encoded, so a replay from a stored
     snapshot stays identical to the original call."""
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(200, {"message_id": "m1", "thread_id": "t1"})
     inline = {"filename": "signature-0.png", "content_type": "image/png", "content": "aW1hZ2U=",
               "content_disposition": "inline", "content_id": "signature-image-0@jobhunt.local"}
@@ -194,7 +194,7 @@ def test_send_email_pdf_then_extra_attachments_verbatim(mock_post, monkeypatch):
 
 @patch("agentmail_client.requests.post")
 def test_send_email_extra_attachments_without_pdf(mock_post, monkeypatch):
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(200, {"message_id": "m1", "thread_id": "t1"})
     inline = [{"filename": "sig.png", "content_type": "image/png", "content": "abc=",
                "content_disposition": "inline", "content_id": "sig@local"}]
@@ -206,7 +206,7 @@ def test_send_email_extra_attachments_without_pdf(mock_post, monkeypatch):
 
 @patch("agentmail_client.requests.post")
 def test_send_email_no_attachments_omits_key(mock_post, monkeypatch):
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     mock_post.return_value = _mock_response(200, {"message_id": "m1", "thread_id": "t1"})
 
     am.send_email("idem-1", "inbox-1", "a@acme.com", "Subject", "Body")
@@ -216,7 +216,7 @@ def test_send_email_no_attachments_omits_key(mock_post, monkeypatch):
 
 @patch("agentmail_client.requests.get")
 def test_get_thread_messages_single_page(mock_get, monkeypatch):
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     resp = MagicMock()
     resp.json.return_value = {"messages": [{"message_id": "m1"}], "next_page_token": None}
     mock_get.return_value = resp
@@ -229,7 +229,7 @@ def test_get_thread_messages_single_page(mock_get, monkeypatch):
 
 @patch("agentmail_client.requests.get")
 def test_get_thread_messages_paginates_until_exhausted(mock_get, monkeypatch):
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     page1 = MagicMock()
     page1.json.return_value = {"messages": [{"message_id": "m1"}], "next_page_token": "tok2"}
     page2 = MagicMock()
@@ -247,7 +247,7 @@ def test_get_thread_messages_paginates_until_exhausted(mock_get, monkeypatch):
 @patch("agentmail_client.requests.get")
 def test_get_thread_messages_raises_on_http_error(mock_get, monkeypatch):
     import requests
-    monkeypatch.setattr(am, "AGENTMAIL_API_KEY", "test-key")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "test-key")
     resp = MagicMock()
     resp.raise_for_status.side_effect = requests.exceptions.HTTPError("403")
     mock_get.return_value = resp

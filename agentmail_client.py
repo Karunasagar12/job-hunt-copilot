@@ -1,10 +1,13 @@
 import base64
-import os
+import settings
 
 import requests
 
-AGENTMAIL_API_KEY = os.getenv("AGENTMAIL_API_KEY")
 BASE_URL = "https://api.agentmail.to/v0"
+
+
+def _api_key():
+    return settings.get("integrations.agentmail.api_key") or ""
 
 
 class AgentMailError(Exception):
@@ -32,7 +35,7 @@ class AgentMailReplayMismatch(Exception):
 
 def _headers(idempotency_key):
     return {
-        "Authorization": f"Bearer {AGENTMAIL_API_KEY}",
+        "Authorization": f"Bearer {_api_key()}",
         "Content-Type": "application/json",
         "Idempotency-Key": idempotency_key,
     }
@@ -122,7 +125,7 @@ def get_thread_messages(inbox_id, thread_id, timeout=20):
             params["page_token"] = page_token
         resp = requests.get(
             f"{BASE_URL}/inboxes/{quote(inbox_id, safe='')}/threads/{quote(thread_id, safe='')}",
-            headers={"Authorization": f"Bearer {AGENTMAIL_API_KEY}"},
+            headers={"Authorization": f"Bearer {_api_key()}"},
             params=params, timeout=timeout,
         )
         resp.raise_for_status()

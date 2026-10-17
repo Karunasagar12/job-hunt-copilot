@@ -16,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import paths
+import settings
 import skill_loader
 import profile as prof
 from dotenv import load_dotenv
@@ -516,7 +517,7 @@ def inbox_digest_thread(contact_id):
         (contact_id,),
     ).fetchone()
     if email1 and email1["provider"] == "agentmail" and email1["agentmail_thread_id"]:
-        inbox_id = os.getenv("AGENTMAIL_INBOX_ID", "")
+        inbox_id = settings.get("integrations.agentmail.inbox_id", "")
         if inbox_id:
             try:
                 messages = agentmail_client.get_thread_messages(inbox_id, email1["agentmail_thread_id"])
@@ -932,8 +933,8 @@ def _prepare_agentmail_content(conn, entry, contact, job):
     reply target (Email 2/3 only), the inbox_id used, and a fingerprint.
     Raises _PrepareError for the caller to turn into an HTTP error
     response."""
-    inbox_id = os.getenv("AGENTMAIL_INBOX_ID", "")
-    if not inbox_id or not agentmail_client.AGENTMAIL_API_KEY:
+    inbox_id = settings.get("integrations.agentmail.inbox_id", "")
+    if not inbox_id or not agentmail_client._api_key():
         raise _PrepareError("AgentMail is not configured (missing AGENTMAIL_INBOX_ID or AGENTMAIL_API_KEY).", 500)
 
     geo = (job["geography"] or "eu") if job else "eu"
@@ -1687,7 +1688,7 @@ def geo_stats(geo):
 # ── COMPANY PROFILES ───────────────────────────────────────────────────────────
 
 def _check_webhook_secret():
-    secret = os.getenv("WEBHOOK_SECRET")
+    secret = settings.get("webhooks.secret")
     header = request.headers.get("X-Webhook-Secret")
     if not secret or not header:
         return False
@@ -1717,7 +1718,7 @@ def deliver_company_profile(company):
 # ── SAVED JOBS QUEUE ────────────────────────────────────────────────────────
 
 def _check_saved_jobs_webhook_secret():
-    secret = os.getenv("SAVED_JOBS_WEBHOOK_SECRET")
+    secret = settings.get("webhooks.saved_jobs_secret")
     header = request.headers.get("X-Webhook-Secret")
     if not secret or not header:
         return False
@@ -1866,7 +1867,7 @@ def _format_company_profile_for_prompt(profile):
 
 
 def _search_firecrawl_salary(company, role, geo):
-    api_key = os.getenv("FIRECRAWL_API_KEY")
+    api_key = settings.get("integrations.firecrawl.api_key")
     if not api_key:
         return ""
     query = ""

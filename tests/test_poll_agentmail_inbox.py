@@ -14,7 +14,7 @@ import poll_agentmail_inbox
 def test_standalone_import_loads_dotenv_before_client(tmp_path, inherited_key):
     """Use a fresh interpreter so pytest's pre-imported client cannot mask the bug."""
     project = Path(__file__).resolve().parents[1]
-    for filename in ("poll_agentmail_inbox.py", "agentmail_client.py", "paths.py"):
+    for filename in ("poll_agentmail_inbox.py", "agentmail_client.py", "paths.py", "settings.py"):
         shutil.copyfile(project / filename, tmp_path / filename)
     (tmp_path / ".env").write_text(
         "AGENTMAIL_API_KEY=dotenv-test-key\nAGENTMAIL_INBOX_ID=dotenv-test@example.com\n",
@@ -38,7 +38,7 @@ def deny(*args, **kwargs):
 socket.socket.connect = deny
 socket.create_connection = deny
 import poll_agentmail_inbox as scanner
-assert scanner.agentmail_client.AGENTMAIL_API_KEY == os.environ['EXPECTED_TEST_KEY']
+assert scanner.agentmail_client._api_key() == os.environ['EXPECTED_TEST_KEY']
 with patch.object(scanner, 'scan_reply_threads', return_value=1) as scan:
     assert scanner.run_agentmail_inbox_scan() == 1
     scan.assert_called_once_with('dotenv-test@example.com')
@@ -135,7 +135,7 @@ def test_already_processed_message_is_skipped(monkeypatch):
 
 def test_run_scan_returns_zero_when_not_configured(monkeypatch):
     monkeypatch.delenv("AGENTMAIL_INBOX_ID", raising=False)
-    monkeypatch.setattr(poll_agentmail_inbox.agentmail_client, "AGENTMAIL_API_KEY", "")
+    monkeypatch.setenv("AGENTMAIL_API_KEY", "")
 
     def fail_if_called(inbox_id, thread_id):
         raise AssertionError("get_thread_messages should not be called when unconfigured")

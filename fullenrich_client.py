@@ -9,7 +9,7 @@ enrich_by_linkedin_async() for callers that do have one.
 
 from __future__ import annotations
 
-import os
+import settings
 import threading
 import time
 from typing import Any
@@ -29,7 +29,7 @@ _HIDDEN_ON_FREE_PLAN = "HIDDEN_ON_FREE_PLAN"
 
 
 def _get_api_key() -> str | None:
-    api_key = os.getenv("FULLENRICH_API_KEY")
+    api_key = settings.get("integrations.fullenrich.api_key")
     if not api_key:
         print("Warning: FULLENRICH_API_KEY is not set. FullEnrich requests will be skipped.")
         return None

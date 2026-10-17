@@ -33,6 +33,14 @@ except FileNotFoundError:
     pass
 
 
+@pytest.fixture(autouse=True)
+def isolated_data(tmp_path_factory, monkeypatch):
+    """Each test receives clean example assets, including settings and profile."""
+    destination = tmp_path_factory.mktemp('example-data')
+    shutil.copytree(Path(__file__).resolve().parents[1] / 'examples' / 'data', destination, dirs_exist_ok=True)
+    monkeypatch.setenv('DATA_DIR', str(destination))
+
+
 @pytest.fixture
 def client():
     from api.app import app

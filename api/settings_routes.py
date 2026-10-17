@@ -6,6 +6,7 @@ from werkzeug.exceptions import BadRequest, RequestEntityTooLarge
 
 import paths
 import profile as prof
+import settings
 
 settings_bp = Blueprint('settings', __name__)
 PHOTO_EXT = {'.jpg': '.jpg', '.jpeg': '.jpg', '.png': '.png'}
@@ -18,6 +19,26 @@ def _err(msg, status=400, **extra):
 @settings_bp.app_errorhandler(RequestEntityTooLarge)
 def oversized_request(exc):
     return _err('Request is too large', 413)
+
+
+@settings_bp.get('/api/settings')
+def get_settings():
+    value = settings.masked()
+    return jsonify({'settings': value, 'load_error': settings.load_error()})
+
+
+@settings_bp.put('/api/settings')
+def put_settings():
+    try:
+        if not request.is_json:
+            return _err('Settings must be a JSON object')
+        partial = request.get_json()
+        if not isinstance(partial, dict):
+            return _err('Settings must be a JSON object')
+        settings.update(settings.strip_masked(partial))
+        return jsonify({'settings': settings.masked()})
+    except BadRequest:
+        return _err('Invalid JSON')
 
 
 @settings_bp.get('/api/profile')

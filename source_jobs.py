@@ -11,7 +11,7 @@ before enabling the timer (Testing & Deploy Protocol). Tests:
 tests/test_source_jobs.py -- this file's __main__ only calls main() (Rule 27).
 """
 import json
-import os
+import settings
 import re
 import sys
 from datetime import datetime, timedelta, timezone
@@ -268,7 +268,7 @@ def run(token=None, fetch=fetch_location, call=None, now=None, config=None, usag
     db.init_db()
     config = config or load_config()
     now = now or datetime.now(timezone.utc).replace(tzinfo=None)
-    token = token or os.getenv("APIFY_API_TOKEN")
+    token = token or settings.get("integrations.apify.api_token")
     last_good = db.last_good_finished_by_location()
     windows = {l["linkedin_location"]: choose_window(last_good.get(l["linkedin_location"]), now)
                for l in config["locations"]}
