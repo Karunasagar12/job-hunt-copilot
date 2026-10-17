@@ -1,3 +1,4 @@
+<!-- skill: inbox-classifier -->
 # SKILL: Inbox Reply Classifier
 
 Classify a single inbound email reply to a job-outreach message. Output **only**

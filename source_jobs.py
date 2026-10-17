@@ -107,6 +107,7 @@ def build_system_prompt():
         for name in ("career-master.md", "skills-master.md")
     )
     return (
+        "<!-- skill: job-ranker -->\n"
         "You rank job postings for one candidate. Their profile:\n\n"
         f"{knowledge}\n\n"
         "Rank, don't gatekeep: every posting reaching you passed a filter and will be shown; your score "

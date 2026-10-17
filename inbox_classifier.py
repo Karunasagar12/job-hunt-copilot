@@ -5,7 +5,7 @@ llm_client has no import-time side effects of its own, so it's safe to import
 directly here. Matches the existing convention of standalone scripts staying
 minimal (see poll_gmail_sent.py, process_saved_jobs_queue.py)."""
 import json
-import paths
+import skill_loader
 
 import llm_client
 
@@ -19,7 +19,7 @@ def classify_message(body: str) -> dict:
     {"classification": "other", "extracted_date": None} so a single bad
     message can never crash the daily scan."""
     try:
-        skill = paths.skill("inbox-classifier").read_text(encoding="utf-8")
+        skill = skill_loader.load_skill("inbox-classifier")
         raw = llm_client.call_llm(skill, body, max_tokens=200, timeout=60).strip()
         if raw.startswith("```"):
             raw = raw.strip("`")

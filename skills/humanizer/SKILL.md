@@ -1,3 +1,4 @@
+<!-- skill: humanizer -->
 # SKILL: Humanizer — AI Writing Pattern Remover
 
 You receive a job outreach document and return the same document with all AI writing
@@ -74,7 +75,7 @@ Fix what remains. Return the final document only — no commentary.
 - The document you receive should already have real contact names substituted in — there should be
   no literal `[Name]`/`[First Name]`/`[Role]` brackets left in it. If you do see one, that is a bug
   upstream, not something to preserve: do not treat literal brackets as intentional formatting.
-- Keep email signature lines (Jane / Senior Data Scientist, Acme Analytics / linkedin.com/in/janedoe-example) untouched.
+- Keep email signature lines ({{signoff_name}} / {{signoff_title}} / {{linkedin}}) untouched.
 - If a sentence has no AI patterns, leave it alone.
 - **Number formatting:** round every count/dollar/quantity metric to a clean, human-sounding figure —
   an exact-to-the-unit number (362, 8,500, 34,328) reads as oddly precise regardless of size.

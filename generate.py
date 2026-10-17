@@ -29,6 +29,7 @@ from dotenv import load_dotenv
 
 import paths
 import profile as prof
+import skill_loader
 
 load_dotenv(paths.repo_dir() / ".env")
 load_dotenv(paths.data(".env"))
@@ -97,18 +98,14 @@ def _log(label: str, msg: str) -> None:
 #  SHARED LLM HELPER
 # ─────────────────────────────────────────────────────────────────────────────
 
-def call_llm(skill_path: str | Path, input_text: str, knowledge: str | None = None) -> str:
-    skill_file = Path(skill_path)
-    if not skill_file.exists():
-        raise RuntimeError(f"Skill file not found: {skill_path}")
-    skill = skill_file.read_text(encoding="utf-8")
-    instructions = skill
+def call_llm(skill_name: str, input_text: str, knowledge: str | None = None) -> str:
+    instructions = skill_loader.load_skill(skill_name)
     if knowledge:
         instructions += "\n\n---\n\n# KNOWLEDGE BASE\n" + knowledge
     try:
         return llm_client.call_llm(instructions, input_text, max_tokens=4096, timeout=LLM_TIMEOUT)
     except Exception as e:
-        raise RuntimeError(f"Bedrock call failed ({skill_path}): {e}")
+        raise RuntimeError(f"LLM call failed ({skill_name}): {e}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -307,7 +304,7 @@ def call_cv_writer(
 ) -> str:
     input_text = (
         f"Generate a tailored CV data module for this JD:\n\n{jd_text}"
-        f"\n\nDetected geography: {geo}"
+        f"\n\nDetected geography: {prof.get_region(geo)['label']}"
     )
     if corrections:
         input_text += (
@@ -320,7 +317,7 @@ def call_cv_writer(
         "or a verification report. Include all required fields and finish the module "
         "and closing fence within the response budget."
     )
-    raw = call_llm(paths.skill("cv-writer"), input_text, knowledge)
+    raw = call_llm("cv-writer", input_text, knowledge)
     match = re.search(r"```python\s*\n(.*?)```", raw, re.DOTALL)
     code = match.group(1).strip() if match else raw.strip()
     try:
@@ -349,7 +346,7 @@ def call_ats_scorer(data_module_code: str, jd_text: str) -> tuple[int, str, str]
         "Omit per-keyword tables and lists of verified claims so the complete result fits "
         "within the response budget."
     )
-    report = call_llm(paths.skill("ats-scorer"), input_text, full_knowledge)
+    report = call_llm("ats-scorer", input_text, full_knowledge)
     # Case-insensitive and tolerant of an "ATS " prefix -- the skill instructs the exact
     # literal "SCORE: XX/50" / "VERDICT: PASS", but the LLM doesn't always comply exactly
     # (observed real output: "**ATS Score: 42/50**", "### Verdict: PASS"), which silently
@@ -458,7 +455,7 @@ def render_pdf(data_module_code: str, output_path: str, agency_name: str | None 
 
 def call_cover_letter(jd_text: str, knowledge: str) -> str:
     return call_llm(
-        paths.skill("cover-letter-writer"),
+        "cover-letter-writer",
         f"Write a cover letter for this JD:\n\n{jd_text}",
         knowledge,
     )
@@ -471,7 +468,7 @@ def call_outreach(jd_text: str, person_profile: dict, knowledge: str) -> str:
         f"## CONTACT PROFILE\n{profile_text}\n\n"
         f"## JOB DESCRIPTION\n{jd_text}"
     )
-    return call_llm(paths.skill("outreach-drafter"), input_text, knowledge)
+    return call_llm("outreach-drafter", input_text, knowledge)
 
 
 def call_outreach_template(jd_text: str, company: str, role: str, knowledge: str) -> str:
@@ -483,12 +480,12 @@ def call_outreach_template(jd_text: str, company: str, role: str, knowledge: str
         f"Follow the output format exactly as specified in the skill.\n\n"
         f"## JOB DESCRIPTION\n{jd_text}"
     )
-    return call_llm(paths.skill("outreach-drafter"), input_text, knowledge)
+    return call_llm("outreach-drafter", input_text, knowledge)
 
 
 def call_humanizer(outreach_text: str) -> str:
     return call_llm(
-        paths.skill("humanizer"),
+        "humanizer",
         outreach_text,
         knowledge=None,
     )

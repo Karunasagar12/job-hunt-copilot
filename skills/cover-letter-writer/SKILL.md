@@ -1,3 +1,4 @@
+<!-- skill: cover-letter-writer -->
 # SKILL: Cover Letter Writer
 
 You generate tailored cover letters. Every letter is unique to the specific JD and company.
@@ -62,8 +63,8 @@ Format: `**Bold lead phrase,** one sentence of impact with metric.`
 ### Step 7: Draft
 
 ```
-[Name]
-[Location] | [Email] | [Phone] | [LinkedIn]
+{{name}}
+[Location] | {{email}} | [Phone] | {{linkedin}}
 
 Cover Letter: [Role Title]
 [Company], [City]   [Date]

@@ -16,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import paths
+import skill_loader
 import profile as prof
 from dotenv import load_dotenv
 load_dotenv(paths.repo_dir() / ".env")
@@ -1517,7 +1518,7 @@ def _llm_redraft(entry, contact, job, feedback: str) -> tuple[str, str]:
     translate the exception to their own error response."""
     knowledge_files = ["career-master.md", "employment-master.md", "education-master.md", "skills-master.md", "identity.md"]
     knowledge_base = "\n\n".join((paths.knowledge_dir() / f).read_text(encoding="utf-8") for f in knowledge_files)
-    skill_content = paths.skill("outreach-drafter").read_text(encoding="utf-8")
+    skill_content = skill_loader.load_skill("outreach-drafter")
 
     jd_text = job["jd_text"] or ""
     user_feedback = feedback or "Please improve the tone and make it more personalized."
@@ -1574,8 +1575,8 @@ def redraft_outreach(entry_id):
         knowledge_files = ["career-master.md", "employment-master.md", "education-master.md", "skills-master.md", "identity.md"]
         for f in knowledge_files:
             (paths.knowledge_dir() / f).read_text(encoding="utf-8")
-        paths.skill("outreach-drafter").read_text(encoding="utf-8")
-    except OSError as exc:
+        skill_loader.load_skill("outreach-drafter")
+    except (OSError, RuntimeError, prof.ProfileError) as exc:
         return err(f"Failed to load redraft context: {exc}", 500)
 
     try:
@@ -1938,6 +1939,7 @@ def salary_estimate(job_id):
     )
 
     prompt = (
+        "<!-- skill: salary-estimator -->\n"
         f"You are a compensation advisor helping a senior candidate negotiate salary.\n\n"
         f"ROLE: {job['role']}\n"
         f"COMPANY: {job.get('company', 'Unknown')}\n"

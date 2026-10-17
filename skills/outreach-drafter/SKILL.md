@@ -1,3 +1,4 @@
+<!-- skill: outreach-drafter -->
 # SKILL: Outreach Drafter — Precision Job Outreach Engine
 
 Draft targeted outreach for each contact. Auto-detect contact type from title and context —
@@ -183,9 +184,9 @@ any contact type, at any touchpoint.** It lives entirely outside this pipeline.
 ## Signature
 
 ```
-Jane
-Senior Data Scientist, Acme Analytics
-linkedin.com/in/janedoe-example
+{{signoff_name}}
+{{signoff_title}}
+{{linkedin}}
 ```
 
 ---
@@ -210,9 +211,9 @@ Hi [First Name],
 
 [body]
 
-Jane
-Senior Data Scientist, Acme Analytics
-linkedin.com/in/janedoe-example
+{{signoff_name}}
+{{signoff_title}}
+{{linkedin}}
 
 ── LINKEDIN CONNECTION REQUEST (Day 0 — send same day) ──
 [max 200 chars]
@@ -227,9 +228,9 @@ Hi [First Name],
 
 [body]
 
-Jane
-Senior Data Scientist, Acme Analytics
-linkedin.com/in/janedoe-example
+{{signoff_name}}
+{{signoff_title}}
+{{linkedin}}
 
 ── EMAIL 3 (Day 12) ──
 Subject: Re: [same subject]
@@ -238,9 +239,9 @@ Hi [First Name],
 
 [body]
 
-Jane
-Senior Data Scientist, Acme Analytics
-linkedin.com/in/janedoe-example
+{{signoff_name}}
+{{signoff_title}}
+{{linkedin}}
 ```
 
 For the General Template (no specific contact known), use this header instead:

@@ -1,3 +1,4 @@
+<!-- skill: ats-scorer -->
 # SKILL: ATS Scorer + RAG Verification
 
 Two functions in one skill:
@@ -86,6 +87,7 @@ This is the critical safety layer. Adapted from career-ops's cv-sync-check patte
 RAG verification applies ONLY to hard factual claims — not to targeting language, skills keywords, or aspirational framing.
 
 **MUST verify (these cause FAIL if unverified):**
+- A role heading ending "(HIDDEN — skills only)" must never appear in EXPERIENCE. Its appearance is a FAIL-level check even if its facts are verified; skills may be used unattributed.
 - Every number/metric: percentages, counts, currency amounts, time metrics, team sizes
 - Company names (must match employment-master.md exactly)
 - Employment dates (must match employment-master.md exactly)
@@ -129,13 +131,14 @@ RAG verification applies ONLY to hard factual claims — not to targeting langua
 
 ### Verdict: PASS / FAIL
 
-FAIL only if a HARD FACTUAL CLAIM is unverified:
+FAIL if a hidden role marked "(HIDDEN — skills only)" appears in EXPERIENCE, or a HARD FACTUAL CLAIM is unverified:
 - A fabricated number (metric, date, count, currency amount, percentage)
 - A company name, title, or date that does not match employment-master.md
 - A named award, organization, or credential not found in any knowledge base file
 - Return to cv-writer with specific corrections and the exact lines to change
 
 PASS if:
+- No hidden role appears in EXPERIENCE
 - All hard metrics trace to source IDs
 - Any FAIL issues are summary targeting language, skills keyword framing, or minor bullet inference (these do not prevent PASS)
 ```
@@ -169,7 +172,7 @@ Unverified Claims: X
 
 IF score >= 35 AND verification == PASS:
   → Render PDF via resume_design_base.py
-  → Save as JaneDoe_{Company}_{Role}.pdf
+  → Save as <Prefix>_Company_Role.pdf
 
 IF score < 35 OR verification == FAIL:
   → Return to cv-writer with:

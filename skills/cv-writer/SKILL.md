@@ -1,3 +1,4 @@
+<!-- skill: cv-writer -->
 # SKILL: CV Writer — Tailored ATS-Optimized Resume Generator
 
 You are a CV tailoring engine. Given a Job Description and the candidate's knowledge base, you generate a Python data module that feeds directly into `resume_design_base.py` (ReportLab) to produce a pixel-perfect Warm Architect PDF.
@@ -52,11 +53,7 @@ Extract:
 
 ## Step 2: Detect Geography
 
-From JD location field:
-- If GCC (Dubai, Abu Dhabi, Saudi, Qatar, Oman, Bahrain, Kuwait) → use GCC contact from identity.md
-- If EU (France, Netherlands, Germany, Ireland, UK, etc.) → use EU contact from identity.md
-- If India (any Indian city) → use India contact from identity.md
-- If Remote / unspecified → default to GCC contact
+Use the contact block Phone and Location from the identity.md section matching the detected region LABEL supplied in the input. If no section matches, fall back to the first region section.
 
 ---
 
@@ -116,9 +113,8 @@ Extract 15-20 exact phrases from the JD. Split into two groups:
 For each role in employment-master.md:
 1. Score every achievement against the JD's top requirements
 2. Select bullets per role — strict page budget:
-   - Most recent role (Acme Analytics): **max 4 bullets**
-   - Secondary role (Northwind Health): **max 3 bullets**
-   - Hidden roles (Contoso Labs): **skills only; omit from experience**
+   - Most recent 2 roles: up to 6 bullets each. Older roles: up to 3. Internships: up to 2.
+   - A role heading ending "(HIDDEN — skills only)" must never appear in EXPERIENCE; its skills may be used unattributed.
    - Use only roles in employment-master.md.
 3. Reorder bullets so strongest JD matches appear FIRST
 4. Use the Google XYZ formula: "Accomplished [X] as measured by [Y], by doing [Z]"
@@ -184,7 +180,7 @@ From education-master.md, select 3-5 courses most relevant to the JD domain tags
 From skills-master.md, select skills that appear in the JD. Organize into categories that mirror the JD's language:
 - If JD groups "Python, SQL, PySpark" under "Languages" → mirror that grouping
 - If JD says "ML frameworks" → group PyTorch, TensorFlow, scikit-learn under that header
-- Include Domain Knowledge (US Healthcare, GCC Healthcare, etc.) when the JD is health-tech
+- Include Domain Knowledge (healthcare, fintech, retail, etc.) only for domains evidenced in the knowledge base and relevant to the JD
 - Include Languages spoken when the JD mentions multilingual or French
 
 **Pill formatting rules (STRICT):**
@@ -218,18 +214,16 @@ Relevance guide:
 Output a complete Python file matching this exact structure:
 
 ```python
-import pathlib
-
 JOB_COMPANY = "{company name exactly as it appears in the JD}"
 JOB_TITLE   = "{job title exactly as it appears in the JD}"
 
-NAME     = "Jane Doe"
-EMAIL    = "jane.doe@example.com"
+NAME     = "{{name}}"
+EMAIL    = "{{email}}"
 PHONE    = "{from identity.md based on detected geography}"
 LOCATION = "{from identity.md based on detected geography}"
-LINKEDIN = "linkedin.com/in/janedoe-example"
-GITHUB   = ""
-PHOTO    = str(pathlib.Path(__file__).parent / "Jane Doe.jpg")
+LINKEDIN = "{{linkedin}}"
+GITHUB   = "{{github}}"
+# PHOTO is set by the renderer; do not output a PHOTO assignment.
 
 SUMMARY = "{3-4 sentence summary from Step 6 with <b>bold keywords</b>}"
 
@@ -245,23 +239,17 @@ EXPERIENCE = [
             # Metrics EXACTLY from employment-master.md
         ],
     },
-    # Include visible roles: Acme Analytics and Northwind Health
+    # Include only visible roles from employment-master.md
     # Order: reverse chronological (most recent first)
-    # Bullet count: Acme Analytics max 4; Northwind Health max 3; hidden roles excluded
+    # Most recent 2 roles: up to 6 bullets each. Older roles: up to 3. Internships: up to 2. Hidden roles excluded.
 ]
 
 EDUCATION = [
     {
-        "degree": "MSc Data Science",
-        "school": "Example University of Paris, France",
-        "dates":  "09/2017 – 06/2019",
-        "detail": "GPA: 3.7/4.0. {selected courses}.",
-    },
-    {
-        "degree": "BSc Applied Mathematics",
-        "school": "Fictional Institute of Science, France",
-        "dates":  "09/2014 – 06/2017",
-        "detail": "{selected courses}.",
+        "degree": "{degree from education-master.md}",
+        "school": "{school from education-master.md}",
+        "dates":  "{dates from education-master.md}",
+        "detail": "{verified details and selected course competency phrases}",
     },
 ]
 
@@ -287,11 +275,11 @@ CERTS = [
 ## Output Naming
 
 Save the Python data module as:
-`JaneDoe_{CompanyName}_{RoleTitle}.py`
+`<Prefix>_Company_Role.py`
 
 Where CompanyName and RoleTitle have spaces replaced with underscores and special characters removed.
 
-Example: `JaneDoe_Google_Senior_Data_Scientist.py`
+Example: `<Prefix>_Google_Senior_Data_Scientist.py`
 
 ---
 
@@ -307,10 +295,11 @@ Example: `JaneDoe_Google_Senior_Data_Scientist.py`
 7. Use em dashes (—) in bullets or the summary. Replace with a comma, colon, or restructure the sentence. En dashes (–) in date ranges (e.g. 2022–2024) are fine.
 8. Write a summary longer than 3 sentences or exceeding 70 words
 9. Output source IDs (AA-01, NH-03, etc.) anywhere in the CV text, bullets, or summary — these are internal only and must never appear in the rendered document
-10. Write the summary in third person ("Jane is...", "He has...") — CV summaries are always first-person implied: no subject pronoun at all. Start directly with the role, achievement, or skill. Wrong: "Jane is a product leader..." Right: "Product leader with 7+ years..." or "Technical co-founder who took..."
+10. Write the summary in third person ("{{name}} is...", "He has...") — CV summaries are always first-person implied: no subject pronoun at all. Start directly with the role, achievement, or skill. Wrong: "{{name}} is a product leader..." Right: "Product leader with 7+ years..." or "Technical co-founder who took..."
 11. Open the summary with a role title dump: "Growth Product Manager, Product Growth Lead profile with..." lists job titles, not a person. Wrong: "Growth Product Manager, Product Growth Lead profile with 7+ years across product-led..." Right: "Product leader with 7+ years across..." Lead with the professional identity (what kind of person they are), not a list of job titles they are targeting.
 12. Use "product-led" as an environment type.
 13. Reference a recruitment agency in the summary. If the JD text begins with "AGENCY POST:" or "ACTUAL HIRING COMPANY:", the posting is from a recruiter. Never write "via [Agency]", "listed by [Agency]", or "[Agency] is looking for" in the summary. Write the summary targeting the role and industry, not the agency. "product-led" is a methodology (product-led growth), not an environment. Wrong: "7+ years across product-led, healthcare, and startup environments." Right: "7+ years across healthcare technology, data science, and startup execution, with ownership of growth in product-led teams."
+14. Use arrow glyphs (→, ←, ↑, ↓) in CV text. Replace them with plain words.
 
 ### ALWAYS
 1. Read employment-master.md before generating ANY achievement text
