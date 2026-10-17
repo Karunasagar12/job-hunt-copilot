@@ -15,7 +15,7 @@ def _err(msg, status=400, **extra):
     return jsonify({'error': msg, 'status': status, **extra}), status
 
 
-@settings_bp.errorhandler(RequestEntityTooLarge)
+@settings_bp.app_errorhandler(RequestEntityTooLarge)
 def oversized_request(exc):
     return _err('Request is too large', 413)
 
@@ -32,10 +32,10 @@ def get_profile():
 def put_profile():
     try:
         if not request.is_json:
-            return _err('Profile must be a JSON object')
+            return _err('Profile must be a JSON object', field=None)
         return jsonify(prof.save_profile(request.get_json()))
     except BadRequest:
-        return _err('Invalid JSON')
+        return _err('Invalid JSON', field=None)
     except prof.ProfileError as exc:
         return _err(str(exc), field=exc.field)
 

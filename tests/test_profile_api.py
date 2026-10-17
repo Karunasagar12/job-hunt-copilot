@@ -156,3 +156,21 @@ def test_photo_request_limit_returns_json(client):
     response = client.post('/api/profile/photo', data=b'x' * (12 * 1024 * 1024 + 1), content_type='multipart/form-data; boundary=example')
     assert response.status_code == 413
     assert response.is_json and response.json['error']
+
+
+@pytest.mark.parametrize('content_type,body', [
+    ('application/json', '{'),
+    ('text/plain', '{}'),
+])
+def test_profile_invalid_request_includes_field(client, content_type, body):
+    response = client.put('/api/profile', data=body, content_type=content_type)
+    assert response.status_code == 400
+    assert response.json['error']
+    assert 'field' in response.json
+    assert response.json['field'] is None
+
+
+def test_job_request_limit_returns_json(client):
+    response = client.post('/api/jobs', json={'jd_text': 'x' * (12 * 1024 * 1024)})
+    assert response.status_code == 413
+    assert response.is_json and response.json['error']
