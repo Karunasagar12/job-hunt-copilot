@@ -1,0 +1,43 @@
+﻿# Private state and credentials
+data/
+.env*
+*.db
+*.db-shm
+*.db-wal
+*.shm
+*.wal
+token.json
+credentials.json
+pii_denylist.txt
+
+# Python runtimes, environments, caches and test scratch space
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.python/
+.uv-cache/
+.pytest_cache/
+.pytest-tmp/
+.coverage
+htmlcov/
+
+# JavaScript build output
+node_modules/
+dashboard/dist/
+
+# Local tools, editors and operating systems
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+*.log
+logs/
+tmp/
+*.tmp
