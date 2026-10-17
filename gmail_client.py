@@ -145,18 +145,19 @@ def _get_signature(geo: str = "eu") -> str:
         return ""
 
 
-def _sig_markers() -> tuple:
+def _sig_markers(p=None) -> tuple:
     try:
-        p = prof.load_profile()
+        p = prof.load_profile() if p is None else p
         return tuple(p.get(key, '').strip().lower() for key in
                      ('linkedin', 'signoff_title') if p.get(key, '').strip())
     except Exception:
         return ()
 
 
-def _signoff_name() -> str:
+def _signoff_name(p=None) -> str:
     try:
-        return prof.load_profile().get('signoff_name', '').strip().lower()
+        p = prof.load_profile() if p is None else p
+        return p.get('signoff_name', '').strip().lower()
     except Exception:
         return ''
 
@@ -171,10 +172,16 @@ def strip_signature(body: str) -> str:
         i -= 1
     if i < 0:
         return body
+    try:
+        p = prof.load_profile()
+    except Exception:
+        return body
+    signoff_name = _signoff_name(p)
+    markers = _sig_markers(p)
     found = False
     while i >= 0:
         lower = lines[i].strip().lower()
-        if (lower and lower == _signoff_name()) or any(m in lower for m in _sig_markers()):
+        if (lower and lower == signoff_name) or any(m in lower for m in markers):
             found = True
             i -= 1
             continue
