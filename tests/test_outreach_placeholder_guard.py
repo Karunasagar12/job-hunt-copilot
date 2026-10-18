@@ -16,7 +16,7 @@ db = app_module.db
 
 
 @pytest.fixture
-def client():
+def client(gmail_credentials):
     with app_module.app.test_client() as c:
         yield c
 

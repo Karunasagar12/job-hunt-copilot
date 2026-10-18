@@ -42,6 +42,14 @@ def isolated_data(tmp_path_factory, monkeypatch):
 
 
 @pytest.fixture
+def gmail_credentials():
+    """Credential presence for tests of mocked Gmail route business rules."""
+    import paths
+    paths.gmail_dir().mkdir(parents=True, exist_ok=True)
+    paths.gmail_dir().joinpath('credentials.json').write_text('{}', encoding='utf-8')
+
+
+@pytest.fixture
 def client():
     from api.app import app
     app.config["TESTING"] = True

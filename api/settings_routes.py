@@ -7,6 +7,7 @@ from werkzeug.exceptions import BadRequest, RequestEntityTooLarge
 import paths
 import profile as prof
 import settings
+import integrations
 
 settings_bp = Blueprint('settings', __name__)
 PHOTO_EXT = {'.jpg': '.jpg', '.jpeg': '.jpg', '.png': '.png'}
@@ -14,6 +15,50 @@ PHOTO_EXT = {'.jpg': '.jpg', '.jpeg': '.jpg', '.png': '.png'}
 
 def _err(msg, status=400, **extra):
     return jsonify({'error': msg, 'status': status, **extra}), status
+
+
+@settings_bp.get('/api/integrations')
+def get_integrations():
+    return jsonify(integrations.all_status())
+
+
+@settings_bp.put('/api/integrations/<name>')
+def put_integration(name):
+    if name not in integrations.IDS:
+        return _err('Unknown integration', 404)
+    try:
+        if not request.is_json:
+            return _err('Integration settings must be a JSON object')
+        partial = request.get_json()
+        if not isinstance(partial, dict):
+            return _err('Integration settings must be a JSON object')
+    except BadRequest:
+        return _err('Invalid JSON')
+    partial = settings.strip_masked(partial)
+    partial.pop('last_test', None)
+    allowed = set(integrations.FIELDS[name])
+    if name == 'apify':
+        allowed.add('max_charge_usd')
+    if name == 'gmail':
+        allowed.add('enabled')
+    if any(key not in allowed for key in partial):
+        return _err('Unknown integration setting')
+    for field in integrations.FIELDS[name]:
+        if field in partial and not isinstance(partial[field], str):
+            return _err('Credentials must be text')
+    if 'enabled' in partial and not isinstance(partial['enabled'], bool):
+        return _err('Enabled must be true or false')
+    if 'max_charge_usd' in partial and (type(partial['max_charge_usd']) not in (int, float) or partial['max_charge_usd'] < 0):
+        return _err('Maximum charge must be a nonnegative number')
+    settings.update({'integrations': {name: {**partial, 'last_test': None}}})
+    return jsonify(integrations.status(name))
+
+
+@settings_bp.post('/api/integrations/<name>/test')
+def test_integration(name):
+    if name not in integrations.IDS:
+        return _err('Unknown integration', 404)
+    return jsonify(integrations.run_test(name))
 
 
 @settings_bp.app_errorhandler(RequestEntityTooLarge)

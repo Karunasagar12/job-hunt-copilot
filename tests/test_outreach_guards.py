@@ -121,7 +121,7 @@ def test_mark_sent_still_works_unconditionally_for_gmail_provider_row(client):
 # agentmail-provider row, which would flip it to status='gmail_draft' -- a state this
 # plan's cancellation/send/retry logic can never recover from (permanently stuck).
 
-def test_create_gmail_draft_rejects_agentmail_row(client):
+def test_create_gmail_draft_rejects_agentmail_row(client, gmail_credentials):
     db.init_db()
     entry_id = _make_entry(status="draft", provider="agentmail")
     resp = client.post(f"/api/outreach/{entry_id}/gmail-draft")
@@ -130,7 +130,7 @@ def test_create_gmail_draft_rejects_agentmail_row(client):
     assert row["status"] == "draft"
 
 
-def test_batch_draft_rejects_agentmail_row(client):
+def test_batch_draft_rejects_agentmail_row(client, gmail_credentials):
     db.init_db()
     entry_id = _make_entry(status="draft", provider="agentmail")
     resp = client.post("/api/outreach/batch-draft", json={"ids": [entry_id]})

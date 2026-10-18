@@ -35,6 +35,7 @@ import outreach_manager
 from api.utils import run_pipeline_async
 
 from api.settings_routes import settings_bp
+import integrations
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024
@@ -591,6 +592,9 @@ def skip_contact_outreach(contact_id):
 
 @app.post("/api/contacts/<int:contact_id>/get-email")
 def get_contact_email(contact_id):
+    gate = integrations.require('fullenrich')
+    if gate is not None:
+        return gate
     conn = db._get_conn()
     row = conn.execute("SELECT * FROM contacts WHERE id = ?", (contact_id,)).fetchone()
     if not row:
@@ -629,6 +633,9 @@ def get_contact_email(contact_id):
 
 @app.post("/api/contacts/match-linkedin")
 def match_linkedin():
+    gate = integrations.require('fullenrich')
+    if gate is not None:
+        return gate
     linkedin_url = (request.json or {}).get("linkedin_url", "").strip()
     if not linkedin_url:
         return err("linkedin_url is required")
@@ -786,6 +793,9 @@ def _get_thread_params(conn, entry):
 
 @app.post("/api/outreach/<int:entry_id>/gmail-draft")
 def create_gmail_draft(entry_id):
+    gate = integrations.require('gmail')
+    if gate is not None:
+        return gate
     conn = db._get_conn()
     entry = conn.execute("SELECT * FROM outreach_log WHERE id = ?", (entry_id,)).fetchone()
     if not entry:
@@ -1028,6 +1038,9 @@ def _compute_send_eligibility(entry, contact):
 
 @app.post("/api/outreach/<int:entry_id>/prepare")
 def prepare_outreach(entry_id):
+    gate = integrations.require('agentmail')
+    if gate is not None:
+        return gate
     conn = db._get_conn()
     entry = conn.execute("SELECT * FROM outreach_log WHERE id = ?", (entry_id,)).fetchone()
     if not entry:
@@ -1064,6 +1077,9 @@ def prepare_outreach(entry_id):
 
 @app.post("/api/outreach/<int:entry_id>/send")
 def send_outreach(entry_id):
+    gate = integrations.require('agentmail')
+    if gate is not None:
+        return gate
     conn = db._get_conn()
     # This is THE validated snapshot for the rest of the request. Every
     # later step -- the fingerprint, the eligibility pre-check, and
@@ -1165,6 +1181,9 @@ def send_outreach(entry_id):
 
 @app.post("/api/outreach/<int:entry_id>/check-status")
 def check_outreach_status(entry_id):
+    gate = integrations.require('agentmail')
+    if gate is not None:
+        return gate
     conn = db._get_conn()
     entry = conn.execute("SELECT * FROM outreach_log WHERE id = ?", (entry_id,)).fetchone()
     if not entry:
@@ -1269,6 +1288,9 @@ def check_outreach_status(entry_id):
 
 @app.post("/api/outreach/<int:entry_id>/retry")
 def retry_outreach(entry_id):
+    gate = integrations.require('agentmail')
+    if gate is not None:
+        return gate
     updated = db.retry_failed_touchpoint(entry_id)
     if not updated:
         return err("Entry not found or not in 'failed' status", 409)
@@ -1277,6 +1299,9 @@ def retry_outreach(entry_id):
 
 @app.post("/api/outreach/batch-draft")
 def batch_draft():
+    gate = integrations.require('gmail')
+    if gate is not None:
+        return gate
     ids = (request.json or {}).get("ids", [])
     if not ids:
         return err("ids list is required")

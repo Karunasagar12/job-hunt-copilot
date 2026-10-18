@@ -43,6 +43,21 @@ def _build_headers(api_key: str) -> dict[str, str]:
     }
 
 
+def check_credentials() -> tuple[bool, str]:
+    """Read account credits without submitting an enrichment."""
+    api_key = _get_api_key()
+    if not api_key:
+        return False, 'Not configured yet'
+    try:
+        response = requests.get(f'{FULLENRICH_API_BASE_URL}/account/credits',
+                                headers=_build_headers(api_key), timeout=15)
+    except requests.RequestException:
+        return False, 'Connection test failed. Check your credentials and try again.'
+    if response.status_code == 200:
+        return True, 'Connected successfully'
+    return False, 'Connection test failed. Check your credentials and try again.'
+
+
 def clean_name_part(value: Any) -> str | None:
     """Normalize a FullEnrich name field, treating the free-plan redaction placeholder as unknown."""
     if not isinstance(value, str):
