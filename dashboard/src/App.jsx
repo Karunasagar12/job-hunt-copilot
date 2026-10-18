@@ -6,6 +6,7 @@ import Contacts from './pages/Contacts.jsx';
 import Pipeline from './pages/Pipeline.jsx';
 import Shortlist from './pages/Shortlist.jsx';
 import Today from './pages/Today.jsx';
+import Settings from './pages/Settings.jsx';
 
 function ComingSoon({ title }) {
   return (
@@ -29,7 +30,7 @@ export default function App() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/contacts" element={<Contacts />} />
         <Route path="/profile" element={<ComingSoon title="Profile" />} />
-        <Route path="/settings" element={<ComingSoon title="Settings" />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>
   );
