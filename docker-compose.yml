@@ -1,0 +1,17 @@
+services:
+  app:
+    image: ghcr.io/karunasagar12/job-hunt-copilot:latest
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+  scheduler:
+    image: ghcr.io/karunasagar12/job-hunt-copilot:latest
+    command: ["python", "scheduler.py"]
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    depends_on:
+      - app

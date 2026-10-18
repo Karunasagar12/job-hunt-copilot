@@ -1,0 +1,10 @@
+services:
+  app:
+    image: job-hunt-copilot:ci
+    build: .
+    environment:
+      LLM_PROVIDER: fake
+  scheduler:
+    image: job-hunt-copilot:ci
+    environment:
+      LLM_PROVIDER: fake
