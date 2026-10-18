@@ -1022,8 +1022,7 @@ def _compute_send_eligibility(entry, contact):
     already handled (fingerprint comparison, predecessor lookup)."""
     if contact["replied"] or contact["email_status"] == "bounced" or contact["outreach_paused_at"]:
         return False, "Contact state has changed since this was reviewed."
-    from datetime import datetime
-    today = datetime.utcnow().date().isoformat()
+    today = prof.today_local().isoformat()
     # Email 1 is Day 0 -- whenever the human starts. Only follow-ups wait
     # for their date (job #141: a Saturday start locked Email 1 till Monday).
     if entry["sequence_num"] != 1 and (not entry["scheduled_date"] or entry["scheduled_date"] > today):
@@ -1122,8 +1121,7 @@ def send_outreach(entry_id):
         status_code = 403 if "Not due" in cannot_send_reason else 409
         return err(cannot_send_reason, status_code)
 
-    from datetime import datetime
-    today = datetime.utcnow().date().isoformat()
+    today = prof.today_local().isoformat()
     idempotency_key = str(uuid.uuid4())
     claimed = db.claim_and_record_attempt(
         entry_id, idempotency_key,
@@ -1459,8 +1457,7 @@ def hermes_mark_sent(touchpoint_id):
 def followups_due():
     if not _check_saved_jobs_webhook_secret():
         return err("Unauthorized", 401)
-    from datetime import datetime
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = prof.today_local().isoformat()
     items = db.get_and_assign_followup_brief(today)
     followups = [
         {

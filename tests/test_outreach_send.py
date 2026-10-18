@@ -1,10 +1,11 @@
 import base64
 import json
 import tempfile
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 
 import db
+import profile as prof
 import agentmail_client
 import api.app as appmod
 
@@ -33,13 +34,8 @@ def _setup_ready_entry(client, sequence_num=1, scheduled_offset_days=0, cv_path=
     )
     contact_id = conn.execute("SELECT id FROM contacts WHERE email='a@acme.com' ORDER BY id DESC LIMIT 1").fetchone()["id"]
     conn.commit()
-    # ponytail: UTC, not local date.today() -- the route's own due-date
-    # check (_compute_send_eligibility / claim_and_record_attempt) compares
-    # against datetime.utcnow().date(). Using local time here is flaky for
-    # ~5.5 hours/day in IST (UTC+5:30), where local midnight has already
-    # rolled the calendar day forward while UTC hasn't yet -- a job "due
-    # today" by local clock reads as scheduled in the future to the route.
-    scheduled = (datetime.utcnow().date() + timedelta(days=scheduled_offset_days)).isoformat()
+    # Use the same profile calendar as eligibility and the atomic claim.
+    scheduled = (prof.today_local() + timedelta(days=scheduled_offset_days)).isoformat()
     entry_id = db.create_outreach_entry(contact_id, job_id, "email", sequence_num, scheduled, "Hi", "Body")
     return job_id, contact_id, entry_id
 
@@ -324,7 +320,7 @@ def test_send_blocks_email_2_until_email_1_confirmed_sent(mock_send, client):
     db.init_db()
     job_id, contact_id, email1_id = _setup_ready_entry(client, sequence_num=1)
     # Email 1 still 'draft' -- never sent
-    scheduled = datetime.utcnow().date().isoformat()
+    scheduled = prof.today_local().isoformat()
     email2_id = db.create_outreach_entry(contact_id, job_id, "email", 4, scheduled, "Hi 2", "Body 2")
     prepared = _prepare(client, email2_id)
 

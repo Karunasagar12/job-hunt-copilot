@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import profile as prof
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Final
@@ -110,7 +111,7 @@ def parse_and_schedule(
         raise TypeError("contacts must be a list of dictionaries")
 
     if start_date is None:
-        base_date = date.today()
+        base_date = prof.today_local()
     elif isinstance(start_date, datetime):
         base_date = start_date.date()
     elif isinstance(start_date, date):

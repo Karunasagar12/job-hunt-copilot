@@ -1,4 +1,4 @@
-from datetime import datetime
+import profile as prof
 
 import api.app as app_module
 
@@ -33,7 +33,7 @@ def test_due_rejects_wrong_secret(monkeypatch):
 
 
 def test_due_returns_numbered_eligible_followup(monkeypatch):
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = prof.today_local().isoformat()
     entry_id = _touchpoint(today)
     client = _client(monkeypatch, secret="real-secret")
     resp = client.get("/api/followups/due", headers={"X-Webhook-Secret": "real-secret"})
@@ -48,7 +48,7 @@ def test_due_returns_numbered_eligible_followup(monkeypatch):
 
 
 def test_due_called_twice_does_not_duplicate_entries(monkeypatch):
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = prof.today_local().isoformat()
     entry_id = _touchpoint(today)
     client = _client(monkeypatch, secret="real-secret")
     client.get("/api/followups/due", headers={"X-Webhook-Secret": "real-secret"})

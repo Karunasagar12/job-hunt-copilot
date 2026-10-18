@@ -2,8 +2,9 @@ import json
 import os
 import sqlite3
 import paths
+import profile as prof
 import threading
-from datetime import date, datetime
+from datetime import datetime
 
 DB_PATH = os.getenv("DB_PATH") or str(paths.db_path())
 
@@ -463,7 +464,6 @@ def get_stats():
     ).fetchone()[0]
     response_rate = round(replied_jobs / sent_count, 2) if sent_count else 0.0
 
-    week_start = date.today().strftime("%Y-%m-%d")  # "this week" = today's applications for simplicity
     this_week_applied = conn.execute(
         "SELECT COUNT(*) FROM jobs WHERE status IN ('applied','sent','reply','interview','offer','rejected') AND updated_at >= date('now','-7 days')"
     ).fetchone()[0]
@@ -710,7 +710,7 @@ def claim_and_record_attempt(entry_id, idempotency_key, expected_subject, expect
     fresh SELECT issued after validation passed, which would silently
     accept whatever a concurrent edit left behind instead of rejecting it.
 
-    today is the caller's UTC date string (`datetime.utcnow().date().isoformat()`)
+    today is the caller's profile-local date string (`prof.today_local().isoformat()`)
     -- passed in rather than computed here so the comparison is explicit
     and testable, and so /send and this function are guaranteed to agree
     on what day it is.
@@ -936,7 +936,7 @@ def get_uncertain_outreach():
 
 def get_followups_due(date=None):
     if date is None:
-        date = datetime.utcnow().strftime("%Y-%m-%d")
+        date = prof.today_local().isoformat()
     conn = _get_conn()
     rows = conn.execute(
         """SELECT ol.*, c.name AS contact_name, j.company, j.role, j.geography
@@ -953,7 +953,7 @@ def get_followups_due(date=None):
 
 def get_and_assign_followup_brief(date=None):
     if date is None:
-        date = datetime.utcnow().strftime("%Y-%m-%d")
+        date = prof.today_local().isoformat()
     conn = _get_conn()
     due = get_followups_due(date)
     eligible = [
