@@ -116,7 +116,7 @@ def test_ready_set_and_missing_profile(monkeypatch):
     assert s.ready_set() == set()
 
 
-def test_runner_failure_continues_and_persists_private_state(monkeypatch):
+def test_runner_failure_continues_and_persists_private_state(monkeypatch, capsys):
     s = module()
     monkeypatch.setattr(s, 'ready_set', lambda: {'gmail', 'agentmail', 'apify_ready', 'saved_jobs'})
     now = utc('2027-01-01T12:00')
@@ -124,7 +124,7 @@ def test_runner_failure_continues_and_persists_private_state(monkeypatch):
     def runner(command, **kwargs):
         calls.append((command, kwargs))
         if command[1].endswith('poll_gmail_sent.py'):
-            raise RuntimeError('fixture failure')
+            raise RuntimeError('fixture-private-exception-text')
         return SimpleNamespace(returncode=2 if command[1].endswith('source_jobs.py') else 0)
     ids = s.run_once(now, runner=runner)
     assert ids == [j['id'] for j in s.JOBS]
@@ -139,6 +139,26 @@ def test_runner_failure_continues_and_persists_private_state(monkeypatch):
     assert json.loads(paths.scheduler_state_path().read_text(encoding='utf-8')) == state
     assert not list(paths.data_dir().glob('tmp*'))
     assert s.run_once(now, runner=runner) == []
+    captured = capsys.readouterr()
+    assert 'gmail_sent_poll' in captured.out and 'RuntimeError' in captured.out
+    assert 'job_sourcing' in captured.out and 'exit code 2' in captured.out
+    assert 'fixture-private-exception-text' not in captured.out + captured.err
+
+
+def test_main_reports_sanitized_cycle_failure_on_stdout(monkeypatch, capsys):
+    s = module()
+    def fail():
+        raise RuntimeError('fixture-private-cycle-text')
+    def stop(seconds):
+        assert seconds == 60
+        raise KeyboardInterrupt
+    monkeypatch.setattr(s, 'run_once', fail)
+    monkeypatch.setattr(s.time, 'sleep', stop)
+    with pytest.raises(KeyboardInterrupt):
+        s.main()
+    captured = capsys.readouterr()
+    assert 'Scheduler cycle failed' in captured.out and 'RuntimeError' in captured.out
+    assert 'fixture-private-cycle-text' not in captured.out + captured.err
 
 
 def test_scheduler_endpoint_reports_all_jobs_without_running(client, monkeypatch):

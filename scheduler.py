@@ -1,7 +1,6 @@
 """Run the five fixed background jobs using local-calendar schedules."""
 from datetime import datetime, time as local_time, timedelta, timezone
 import json
-import logging
 import subprocess
 import sys
 import time
@@ -13,7 +12,6 @@ import profile as prof
 import settings
 import source_jobs
 
-LOG = logging.getLogger(__name__)
 JOBS = [
     {'id': 'gmail_sent_poll', 'script': 'poll_gmail_sent.py', 'kind': 'interval',
      'schedule_key': 'gmail_sent_poll_minutes', 'offset_min': 0, 'requires': 'gmail'},
@@ -120,9 +118,11 @@ def run_once(now_utc=None, runner=subprocess.run):
             result = runner([sys.executable, str(paths.repo_dir() / job['script'])],
                             cwd=paths.repo_dir(), timeout=1800)
             code = result.returncode
-        except Exception:
+            if code != 0:
+                print(f"Scheduled job {job['id']} failed: exit code {code}", flush=True)
+        except Exception as exc:
             # Exception text may contain provider credentials or private data.
-            LOG.error('Scheduled job %s failed', job['id'])
+            print(f"Scheduled job {job['id']} failed: {type(exc).__name__}", flush=True)
         stamp = now.isoformat()
         state['last_runs'][job['id']] = stamp
         state['results'][job['id']] = {'ok': code == 0, 'exit_code': code, 'at': stamp}
@@ -131,12 +131,11 @@ def run_once(now_utc=None, runner=subprocess.run):
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
     while True:
         try:
             run_once()
-        except Exception:
-            LOG.error('Scheduler cycle failed')
+        except Exception as exc:
+            print(f'Scheduler cycle failed: {type(exc).__name__}', flush=True)
         time.sleep(60)
 
 
