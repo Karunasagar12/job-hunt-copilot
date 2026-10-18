@@ -15,11 +15,13 @@ import settings
 import re
 import sys
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation, ROUND_DOWN
 
 import requests
 from dotenv import load_dotenv
 
 import paths
+import profile as prof
 
 PROJECT_ROOT = paths.repo_dir()
 load_dotenv(paths.repo_dir() / ".env")
@@ -29,7 +31,8 @@ import db  # noqa: E402
 import llm_client  # noqa: E402
 from generate import is_agency  # noqa: E402
 
-CONFIG_PATH = PROJECT_ROOT / "sourcing_config.json"
+MAX_TITLES = 8
+MAX_LOCATIONS = 8
 APIFY_API = "https://api.apify.com/v2"
 DATE_POSTED = {"past_24h": "r86400", "past_week": "r604800"}
 MIN_JD_CHARS = 300
@@ -54,9 +57,45 @@ POSITIVE = re.compile(
 BOILERPLATE = re.compile(r"(equal (employment )?opportunit|we are an equal|reasonable accommodation|privacy notice)", re.I)
 
 
-def load_config(path=CONFIG_PATH):
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+def load_config(path=None):
+    if path is not None:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    try:
+        p = prof.load_profile()
+    except prof.ProfileError:
+        p = {'target_titles': [], 'target_locations': []}
+    try:
+        budget = Decimal(str(settings.get('integrations.apify.max_charge_usd', 5)))
+        budget = min(budget, Decimal('5')) if budget.is_finite() and budget > 0 else Decimal('0')
+    except InvalidOperation:
+        budget = Decimal('0')
+    locations = p['target_locations'][:MAX_LOCATIONS]
+    # Round down: nearest rounding can exceed the monthly limit across 31 days.
+    charge = min(Decimal('0.02'), (budget / 31 / max(len(locations), 1)).quantize(
+        Decimal('0.0001'), rounding=ROUND_DOWN))
+    config = {
+        'actor': 'automation-lab~linkedin-jobs-scraper',
+        'monthly_budget_usd': float(budget),
+        'titles': p['target_titles'][:MAX_TITLES],
+        'locations': [dict(linkedin_location=loc, geo=prof.detect_region(loc, p),
+                           remote_only=loc.lower().startswith('remote'), max_jobs=25,
+                           max_charge_usd=float(charge)) for loc in locations],
+    }
+    # Float conversion must not undo the conservative decimal allocation.
+    while charge > 0 and (sum(l['max_charge_usd'] for l in config['locations']) * 31 > float(budget)
+                         or worst_case_monthly_usd(config) > float(budget)):
+        charge -= Decimal('0.0001')
+        for loc in config['locations']:
+            loc['max_charge_usd'] = float(charge)
+    return config
+
+
+def sourcing_ready(config=None):
+    config = load_config() if config is None else config
+    return bool(config['titles'] and config['locations']
+                and 0 < config['monthly_budget_usd'] <= 5
+                and all(0 < loc['max_charge_usd'] <= 0.02 for loc in config['locations']))
 
 
 def linkedin_job_id(url, fallback_id=None):
@@ -273,6 +312,12 @@ def run(token=None, fetch=fetch_location, call=None, now=None, config=None, usag
     windows = {l["linkedin_location"]: choose_window(last_good.get(l["linkedin_location"]), now)
                for l in config["locations"]}
     run_id = db.start_sourcing_run("past_week" if "past_week" in windows.values() else "past_24h")
+    if not sourcing_ready(config):
+        stats = [{'location': '(configuration)', 'status': 'skipped', 'scraped': 0, 'usd': 0.0,
+                  'error': 'Sourcing requires target titles, locations and an affordable positive budget.'}]
+        db.finish_sourcing_run(run_id, 'skipped', stats, 0.0)
+        _safe_sweep()
+        return {'run_id': run_id, 'outcome': 'skipped', 'locations': stats}
     if not token:
         print("source_jobs: APIFY_API_TOKEN missing", flush=True)
         db.finish_sourcing_run(run_id, "failed", [], 0.0)

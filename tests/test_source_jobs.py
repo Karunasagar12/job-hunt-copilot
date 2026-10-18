@@ -5,7 +5,16 @@ import pytest
 
 import source_jobs as sj
 
-CFG = sj.load_config()
+CFG = {
+    'actor': 'automation-lab~linkedin-jobs-scraper', 'monthly_budget_usd': 5.0,
+    'titles': ['Data Scientist', 'Senior Data Scientist', 'Machine Learning Engineer',
+               'Data Science Manager', 'Analytics Engineer', 'AI Engineer', 'Product Manager', 'Product Owner'],
+    'locations': [dict(linkedin_location=name, geo=geo, remote_only=remote, max_jobs=25,
+                       max_charge_usd=0.02) for name, geo, remote in [
+        ('United Arab Emirates', 'gcc', False), ('Saudi Arabia', 'gcc', False),
+        ('Qatar', 'gcc', False), ('France', 'eu', False), ('European Union', 'eu', True),
+        ('Germany', 'eu', False), ('Spain', 'eu', False), ('Ireland', 'eu', False)]],
+}
 COUNTRIES = [l["linkedin_location"].lower() for l in CFG["locations"] if not l["remote_only"]]
 UAE = next(l for l in CFG["locations"] if l["linkedin_location"] == "United Arab Emirates")
 EU_REMOTE = next(l for l in CFG["locations"] if l["remote_only"])
@@ -126,15 +135,20 @@ def test_choose_window():
     assert sj.choose_window("2026-10-11 00:50:00", now) == "past_week"
 
 
-def test_config_fits_free_credit_and_titles():
+def test_inline_config_fits_free_credit():
     assert sj.worst_case_monthly_usd(CFG) <= CFG["monthly_budget_usd"] == 5.0
     assert len(CFG["titles"]) == 8 and "AI Engineer" in CFG["titles"] and "Product Owner" in CFG["titles"]
     assert all(l["max_jobs"] == 25 for l in CFG["locations"])
 
 
-def test_system_prompt_uses_knowledge_files():
+def test_system_prompt_uses_knowledge_files(tmp_path, monkeypatch):
+    for name in ('career-master.md', 'skills-master.md'):
+        (tmp_path / name).write_text((name + ' relevant candidate knowledge\n') * 30, encoding='utf-8')
+    monkeypatch.setattr(sj.paths, 'knowledge_dir', lambda: tmp_path)
     prompt = sj.build_system_prompt()
     assert "fit_score" in prompt and "JSON" in prompt
+    assert '<!-- skill: job-ranker -->' in prompt
+    assert 'career-master.md' in prompt and 'skills-master.md' in prompt
     assert len(prompt) > 1000   # career-master + skills-master content included
 
 
