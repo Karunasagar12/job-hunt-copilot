@@ -1,11 +1,16 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { addContact, matchLinkedIn } from '../api.js';
 import ContactCard from './ContactCard.jsx';
 import DedupWarning from './DedupWarning.jsx';
+import useIntegrations from '../hooks/useIntegrations.js';
+import { integrationErrorMessage } from '../utils/integrations.js';
 
 const EMPTY_FORM = { name: '', title: '', email: '', linkedin_url: '', contact_type: 'hiring_manager' };
 
 export default function ContactList({ jobId, contacts, onContactsChange }) {
+  const { isConnected } = useIntegrations();
+  const fullenrichOk = isConnected('fullenrich');
   const safe = Array.isArray(contacts) ? contacts : [];
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -32,7 +37,7 @@ export default function ContactList({ jobId, contacts, onContactsChange }) {
         email: person.email || cur.email,
       }));
     } catch (err) {
-      setError(err.message || 'Apollo lookup failed.');
+      setError(integrationErrorMessage(err, 'FullEnrich lookup failed.'));
     } finally {
       setAutofilling(false);
     }
@@ -122,7 +127,8 @@ export default function ContactList({ jobId, contacts, onContactsChange }) {
                   <input type="url" value={form.linkedin_url} onChange={e => updateForm('linkedin_url', e.target.value)}
                     placeholder="https://linkedin.com/in/..."
                     className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                  <button type="button" onClick={handleAutofill} disabled={autofilling || !form.linkedin_url.trim()}
+                  <button type="button" onClick={handleAutofill} disabled={!fullenrichOk || autofilling || !form.linkedin_url.trim()}
+                    title={fullenrichOk ? '' : 'Connect FullEnrich in Settings'}
                     className="flex items-center gap-2 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-40">
                     {autofilling && (
                       <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-700 border-t-transparent" />
@@ -144,6 +150,7 @@ export default function ContactList({ jobId, contacts, onContactsChange }) {
               </label>
             </div>
             {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+            {!fullenrichOk && <Link to="/settings" className="mt-3 inline-block text-xs text-cyan-700 underline">Connect FullEnrich in Settings</Link>}
             <div className="mt-4 flex items-center gap-3">
               <button type="submit" disabled={adding}
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">

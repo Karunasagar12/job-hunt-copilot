@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { deleteContact, fetchContacts, getContactEmail, updateContact } from '../api.js';
+import useIntegrations from '../hooks/useIntegrations.js';
+import { integrationErrorMessage } from '../utils/integrations.js';
 
 // FullEnrich's enrichment is async (~30-90s) -- poll for the result rather than
 // expecting it in getContactEmail's own response. Matches the backend's own
@@ -22,6 +25,8 @@ const SOURCE_BADGES = {
 };
 
 export default function ContactCard({ contact, jobId, onUpdate, onDelete }) {
+  const { isConnected } = useIntegrations();
+  const fullenrichOk = isConnected('fullenrich');
   const [isEditing, setIsEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -91,7 +96,7 @@ export default function ContactCard({ contact, jobId, onUpdate, onDelete }) {
         }
       }
     } catch (err) {
-      setError(err.message || 'Failed to fetch email.');
+      setError(integrationErrorMessage(err, 'Failed to fetch email.'));
     } finally {
       setFetchingEmail(false);
     }
@@ -174,7 +179,8 @@ export default function ContactCard({ contact, jobId, onUpdate, onDelete }) {
                 {contact.email}
               </a>
             ) : (contact.apollo_id || contact.linkedin_url) ? (
-              <button type="button" onClick={handleGetEmail} disabled={fetchingEmail}
+              <button type="button" onClick={handleGetEmail} disabled={!fullenrichOk || fetchingEmail}
+                title={fullenrichOk ? '' : 'Connect FullEnrich in Settings'}
                 className="flex items-center gap-2 text-sm font-medium text-amber-700 hover:text-amber-900 disabled:opacity-50">
                 {fetchingEmail && (
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-amber-700 border-t-transparent" />
@@ -182,6 +188,9 @@ export default function ContactCard({ contact, jobId, onUpdate, onDelete }) {
                 {fetchingEmail ? 'Enriching…' : 'Get email'}
               </button>
             ) : null}
+            {!fullenrichOk && !contact.email && (contact.apollo_id || contact.linkedin_url) && (
+              <Link to="/settings" className="text-xs text-cyan-600 underline">Connect FullEnrich in Settings</Link>
+            )}
             {contact.linkedin_url && (
               <a href={contact.linkedin_url} target="_blank" rel="noreferrer"
                 className="text-sm text-indigo-600 hover:text-indigo-800">

@@ -1,7 +1,12 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { fetchSalaryEstimate } from '../api.js';
+import useIntegrations from '../hooks/useIntegrations.js';
+import { integrationErrorMessage } from '../utils/integrations.js';
 
 export default function SalaryEstimator({ jobId }) {
+  const { isConnected } = useIntegrations();
+  const firecrawlOk = isConnected('firecrawl');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -11,7 +16,7 @@ export default function SalaryEstimator({ jobId }) {
     try {
       const data = await fetchSalaryEstimate(jobId, { refresh });
       setResult(data);
-    } catch (e) { setError(e.message || 'Failed to estimate salary.'); }
+    } catch (e) { setError(integrationErrorMessage(e, 'Failed to estimate salary.')); }
     finally { setLoading(false); }
   }
 
@@ -23,6 +28,7 @@ export default function SalaryEstimator({ jobId }) {
           <p className="mt-1 text-sm text-slate-400">
             AI-estimated range based on this role, company, geography, and your profile.
           </p>
+          {!firecrawlOk && <p className="mt-1 text-xs text-slate-500">Live salary data: off (connect Firecrawl) · <Link to="/settings" className="underline">Settings</Link></p>}
         </div>
         {!result && (
           <button type="button" onClick={() => handleEstimate(false)} disabled={loading}

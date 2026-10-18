@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { batchCreateDrafts, createGmailDraft, skipOutreach } from '../api.js';
 import { copyToClipboard } from '../utils/clipboard.js';
+import useIntegrations from '../hooks/useIntegrations.js';
+import { integrationErrorMessage } from '../utils/integrations.js';
 
 function channelIcon(channel) {
   if (channel === 'email') return '✉';
@@ -37,7 +39,7 @@ function groupFollowups(followups) {
   return { overdue, dueToday };
 }
 
-function FollowUpEntry({ entry, isPending, overdueDays, onCreateDraft, onCopy, onSkip }) {
+function FollowUpEntry({ entry, isPending, gmailOk, overdueDays, onCreateDraft, onCopy, onSkip }) {
   const isEmail = entry.channel === 'email';
   const isLinkedIn = entry.channel === 'linkedin_connect' || entry.channel === 'linkedin_dm';
 
@@ -74,7 +76,7 @@ function FollowUpEntry({ entry, isPending, overdueDays, onCreateDraft, onCopy, o
 
       <div className="flex flex-wrap gap-2">
         {isEmail && (
-          <button type="button" disabled={isPending}
+          <button type="button" disabled={!gmailOk || isPending} title={gmailOk ? '' : 'Connect Gmail in Settings'}
             onClick={onCreateDraft}
             className="rounded-lg bg-cyan-500 px-3 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-40">
             Create Gmail Draft
@@ -97,6 +99,8 @@ function FollowUpEntry({ entry, isPending, overdueDays, onCreateDraft, onCopy, o
 }
 
 export default function FollowUpQueue({ followups = [], onAction }) {
+  const { isConnected } = useIntegrations();
+  const gmailOk = isConnected('gmail');
   const [error, setError] = useState('');
   const [batchPending, setBatchPending] = useState(false);
   const [pendingId, setPendingId] = useState(null);
@@ -113,14 +117,14 @@ export default function FollowUpQueue({ followups = [], onAction }) {
   async function handleCreateAllDrafts() {
     setError(''); setBatchPending(true);
     try { await batchCreateDrafts(emailIds); await onAction?.(); }
-    catch (e) { setError(e.message || 'Failed to create drafts.'); }
+    catch (e) { setError(integrationErrorMessage(e, 'Failed to create drafts.')); }
     finally { setBatchPending(false); }
   }
 
   async function handleAction(id, action, fallback) {
     setError(''); setPendingId(id);
     try { await action(); await onAction?.(); }
-    catch (e) { setError(e.message || fallback); }
+    catch (e) { setError(integrationErrorMessage(e, fallback)); }
     finally { setPendingId(null); }
   }
 
@@ -130,6 +134,7 @@ export default function FollowUpQueue({ followups = [], onAction }) {
         key={entry.id}
         entry={entry}
         isPending={pendingId === entry.id}
+        gmailOk={gmailOk}
         overdueDays={overdueDays}
         onCreateDraft={() => handleAction(entry.id, () => createGmailDraft(entry.id), 'Failed to create Gmail draft.')}
         onCopy={() => copyText(entry.content)}
@@ -146,7 +151,8 @@ export default function FollowUpQueue({ followups = [], onAction }) {
           <span className="rounded-full bg-slate-700 px-2 py-0.5 font-mono text-xs text-slate-300">{followups.length}</span>
         </div>
         {emailIds.length > 0 && (
-          <button type="button" onClick={handleCreateAllDrafts} disabled={batchPending}
+          <button type="button" onClick={handleCreateAllDrafts} disabled={!gmailOk || batchPending}
+            title={gmailOk ? '' : 'Connect Gmail in Settings'}
             className="rounded-lg bg-cyan-500 px-3 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-40">
             {batchPending ? 'Creating…' : 'Create All Drafts'}
           </button>
@@ -154,6 +160,7 @@ export default function FollowUpQueue({ followups = [], onAction }) {
       </div>
 
       {error && <div className="mb-4 rounded-lg border border-red-700 bg-red-900/30 p-3 text-sm text-red-400">{error}</div>}
+      {!gmailOk && <Link to="/settings" className="mb-4 inline-block text-xs text-cyan-400 underline">Connect Gmail in Settings</Link>}
 
       {followups.length === 0 ? (
         <div className="rounded-lg bg-slate-700/50 p-6 text-center text-sm text-slate-500">No follow-ups due.</div>

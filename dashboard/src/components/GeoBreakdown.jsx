@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchGeoStats } from '../api.js';
-
-const GEOS = [
-  { key: 'gcc', label: 'GCC / UAE' },
-  { key: 'india', label: 'India' },
-  { key: 'eu', label: 'Europe' },
-];
+import useRegions from '../hooks/useRegions.js';
+import { regionLabel } from '../utils/regions.js';
 
 const STATUS_COLORS = {
   new: 'bg-gray-400',
@@ -49,6 +45,7 @@ function getTopStatus(byStatus) {
 }
 
 export default function GeoBreakdown() {
+  const { regions } = useRegions();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,23 +54,20 @@ export default function GeoBreakdown() {
     async function load() {
       setLoading(true);
       try {
-        const results = await Promise.all([
-          fetchGeoStats('gcc'),
-          fetchGeoStats('india'),
-          fetchGeoStats('eu'),
-        ]);
+        const results = await Promise.all(regions.map(region => fetchGeoStats(region.id)));
         if (!cancelled) {
-          setRows(GEOS.map((geo, index) => ({ ...geo, data: results[index] || null })));
+          setRows(regions.map((region, index) => ({ key: region.id, label: regionLabel(regions, region.id), data: results[index] || null })));
         }
       } catch {
-        if (!cancelled) setRows(GEOS.map((geo) => ({ ...geo, data: null })));
+        if (!cancelled) setRows(regions.map(region => ({ key: region.id, label: regionLabel(regions, region.id), data: null })));
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-    load();
+    if (!regions.length) { setRows([]); setLoading(false); }
+    else load();
     return () => { cancelled = true; };
-  }, []);
+  }, [regions]);
 
   return (
     <section className="rounded-lg border border-gray-200 bg-white p-4">

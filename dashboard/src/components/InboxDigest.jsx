@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { confirmCascade, dismissDigestContact, dismissDigestMessages, fetchDigestThread, updateJob } from '../api.js';
 import { checkOutreachStatus, dismissUncertainOutreach, retryOutreach } from '../api.js'; // Task 11 `uncertain` bucket actions
+import useIntegrations from '../hooks/useIntegrations.js';
+import { integrationErrorMessage } from '../utils/integrations.js';
 
 function CollapsedSection({ label, colorClass, count, items, renderItem }) {
   const [open, setOpen] = useState(false);
@@ -113,7 +115,7 @@ function BucketRow({ m, onDismiss, right, pendingId }) {
   );
 }
 
-function UncertainRow({ item, onAction, pendingId, setPendingId, setError }) {
+function UncertainRow({ item, agentmailOk, onAction, pendingId, setPendingId, setError }) {
   const isPending = pendingId === item.id;
   const sequencePosition = { 1: 1, 4: 2, 5: 3 }[item.sequence_num] || item.sequence_num;
 
@@ -121,7 +123,7 @@ function UncertainRow({ item, onAction, pendingId, setPendingId, setError }) {
     setPendingId(item.id);
     setError('');
     try { await checkOutreachStatus(item.id); await onAction?.(); }
-    catch (e) { setError(e.message || 'Check failed.'); }
+    catch (e) { setError(integrationErrorMessage(e, 'Check failed.')); }
     finally { setPendingId(null); }
   }
 
@@ -137,7 +139,7 @@ function UncertainRow({ item, onAction, pendingId, setPendingId, setError }) {
     setPendingId(item.id);
     setError('');
     try { await retryOutreach(item.id); await onAction?.(); }
-    catch (e) { setError(e.message || 'Retry failed.'); }
+    catch (e) { setError(integrationErrorMessage(e, 'Retry failed.')); }
     finally { setPendingId(null); }
   }
 
@@ -146,13 +148,13 @@ function UncertainRow({ item, onAction, pendingId, setPendingId, setError }) {
       <span>{item.contact_name} ({item.company}) — Email {sequencePosition} — {item.status}</span>
       <div className="flex gap-2">
         {item.status === 'uncertain' && (
-          <button type="button" disabled={isPending} onClick={handleCheck}
+          <button type="button" disabled={!agentmailOk || isPending} title={agentmailOk ? '' : 'Connect AgentMail in Settings'} onClick={handleCheck}
             className="rounded-lg border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
             Check status
           </button>
         )}
         {item.status === 'failed' && (
-          <button type="button" disabled={isPending} onClick={handleRetry}
+          <button type="button" disabled={!agentmailOk || isPending} title={agentmailOk ? '' : 'Connect AgentMail in Settings'} onClick={handleRetry}
             className="rounded-lg border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
             Retry
           </button>
@@ -167,6 +169,8 @@ function UncertainRow({ item, onAction, pendingId, setPendingId, setError }) {
 }
 
 export default function InboxDigest({ digest, onAction }) {
+  const { isConnected } = useIntegrations();
+  const agentmailOk = isConnected('agentmail');
   const [pendingId, setPendingId] = useState(null);
   const [error, setError] = useState('');
   const replies = digest?.replies || [];
@@ -245,8 +249,9 @@ export default function InboxDigest({ digest, onAction }) {
           <div>
             <CollapsedSection label="Uncertain sends" colorClass="text-orange-500" count={uncertain.count} items={uncertain.items}
               renderItem={item => (
-                <UncertainRow key={item.id} item={item} onAction={onAction} pendingId={pendingId} setPendingId={setPendingId} setError={setError} />
+                <UncertainRow key={item.id} item={item} agentmailOk={agentmailOk} onAction={onAction} pendingId={pendingId} setPendingId={setPendingId} setError={setError} />
               )} />
+            {uncertain.count > 0 && !agentmailOk && <Link to="/settings" className="mt-2 inline-block text-xs text-cyan-400 underline">Connect AgentMail in Settings</Link>}
             {uncertain.count > 0 && (
               <p className="mt-1 text-xs text-gray-400">
                 "Check status" re-sends the original request under its original idempotency key — safe if AgentMail already has a record of it, but if the original request never reached AgentMail at all, checking can itself send the email for the first time.

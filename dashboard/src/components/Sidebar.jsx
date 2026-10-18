@@ -20,6 +20,8 @@ const NAV_LINKS = [
   { to: '/shortlist', label: 'Shortlist', badge: 'shortlist_new' },
   { to: '/analytics', label: 'Analytics' },
   { to: '/contacts', label: 'Contacts' },
+  { to: '/profile', label: 'Profile' },
+  { to: '/settings', label: 'Settings' },
 ];
 
 export default function Sidebar({ isOpen = false, onClose = () => {} }) {
@@ -68,7 +70,8 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
       <aside className={`fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-slate-700 bg-slate-900 transition-transform duration-200 md:z-30 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="border-b border-slate-700 px-6 py-6">
           <div className="flex items-center gap-3">
-            <span className="font-mono text-xl font-bold uppercase tracking-[0.2em] text-white">Job Hunt Copilot</span>
+            <img src="/logo.svg" className="h-7 w-7" alt="" />
+            <span className="font-mono text-xl font-bold tracking-wide text-white">Job Hunt Copilot</span>
           </div>
           <div className="mt-0.5 text-xs uppercase tracking-widest text-slate-500">Recruitment Intelligence</div>
         </div>

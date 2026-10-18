@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import {
   approveSourcedJob, fetchLatestSourcingRun, fetchSourcedJobs, passSourcedJob, pollJobStatus,
 } from '../api.js';
+import useRegions from '../hooks/useRegions.js';
+import useIntegrations from '../hooks/useIntegrations.js';
 
-const GEOS = [['', 'All'], ['gcc', 'GCC'], ['eu', 'EU']];
+const BASE_GEOS = [['', 'All']];
 const PASS_REASONS = [
   ['wrong_seniority', 'Wrong seniority'], ['wrong_domain', 'Wrong domain'], ['wrong_location', 'Wrong location'],
   ['company', 'Company'], ['language', 'Language'], ['other', 'Other'],
@@ -128,6 +130,10 @@ function JobCard({ job, onApprove, onPass, busy }) {
 }
 
 export default function Shortlist() {
+  const { regions } = useRegions();
+  const { isConnected } = useIntegrations();
+  const apifyOk = isConnected('apify');
+  const geos = [...BASE_GEOS, ...regions.map(region => [region.id, region.label])];
   const [geo, setGeo] = useState('');
   const [jobs, setJobs] = useState([]);
   const [run, setRun] = useState(null);
@@ -209,8 +215,15 @@ export default function Shortlist() {
         <div className="mt-1"><RunHeader run={run} /></div>
       </div>
 
+      {!apifyOk && (
+        <div className="rounded-xl border border-cyan-800 bg-cyan-950/40 p-4 text-sm text-cyan-200">
+          Connect Apify in Settings to get daily job suggestions here.{' '}
+          <Link to="/settings" className="underline">Open Settings</Link>
+        </div>
+      )}
+
       <div className="flex gap-2">
-        {GEOS.map(([value, label]) => (
+        {geos.map(([value, label]) => (
           <button key={label} type="button" onClick={() => setGeo(value)}
             className={`rounded-lg px-3 py-1.5 text-sm ${geo === value ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-400 hover:bg-slate-800'}`}>
             {label}

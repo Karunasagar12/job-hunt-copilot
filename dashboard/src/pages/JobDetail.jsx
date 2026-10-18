@@ -2,15 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { deleteJob, downloadCoverLetter, downloadCV, fetchJob, updateJob } from '../api.js';
 import AtsGauge from '../components/AtsGauge.jsx';
-import CompanyProfile from '../components/CompanyProfile.jsx';
 import ContactList from '../components/ContactList.jsx';
 import CopyButton from '../components/CopyButton.jsx';
 import OutreachTimeline from '../components/OutreachTimeline.jsx';
 import SalaryEstimator from '../components/SalaryEstimator.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import StatusDropdown from '../components/StatusDropdown.jsx';
+import useRegions from '../hooks/useRegions.js';
+import { regionLabel } from '../utils/regions.js';
 
-const TABS = ['Overview', 'Contacts', 'Outreach', 'Notes', 'Company', 'Salary'];
+const TABS = ['Overview', 'Contacts', 'Outreach', 'Notes', 'Salary'];
 
 function PipelineStep({ label, state }) {
   const icon = state === 'done' ? '✓' : state === 'warn' ? '⚠' : '○';
@@ -24,6 +25,7 @@ function PipelineStep({ label, state }) {
 }
 
 export default function JobDetail() {
+  const { regions } = useRegions();
   const { id } = useParams();
   const navigate = useNavigate();
   const [job, setJob] = useState(null);
@@ -135,7 +137,7 @@ export default function JobDetail() {
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-2xl font-semibold tracking-tight text-white">{job.company || '—'}</h2>
               <span className="rounded-full bg-slate-700 px-2.5 py-1 font-mono text-xs uppercase text-slate-300">
-                {job.geography || '—'}
+                {regionLabel(regions, job.geography)}
               </span>
               <StatusBadge status={job.status} />
             </div>
@@ -232,9 +234,6 @@ export default function JobDetail() {
         </section>
       )}
 
-      {tab === 'Company' && (
-        <CompanyProfile jobId={job.id} />
-      )}
 
       {tab === 'Salary' && (
         <SalaryEstimator jobId={job.id} />

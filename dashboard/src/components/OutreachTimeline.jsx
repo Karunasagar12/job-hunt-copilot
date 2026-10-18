@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   bounceContact,
   createGmailDraft,
@@ -15,6 +16,8 @@ import { copyToClipboard } from '../utils/clipboard.js';
 import ReviewSendDrawer from './ReviewSendDrawer.jsx';
 import LinkedInConnectPanel from './LinkedInConnectPanel.jsx';
 import { noteText } from '../utils/linkedin.js';
+import useIntegrations from '../hooks/useIntegrations.js';
+import { integrationErrorMessage } from '../utils/integrations.js';
 
 function channelIcon(channel) {
   if (channel === 'email') return '✉';
@@ -44,6 +47,9 @@ function StatusBadge({ status }) {
 }
 
 export default function OutreachTimeline({ jobId, contacts = [], outreachEntries = [], onOutreachChange, onOpenContacts }) {
+  const { isConnected } = useIntegrations();
+  const gmailOk = isConnected('gmail');
+  const agentmailOk = isConnected('agentmail');
   const [entries, setEntries] = useState(outreachEntries);
   const [starting, setStarting] = useState(false);
   const [pendingId, setPendingId] = useState(null);
@@ -91,7 +97,7 @@ export default function OutreachTimeline({ jobId, contacts = [], outreachEntries
     catch (e) {
       // Roll back, then refetch: a 409 usually means the row changed
       // server-side (e.g. skipped by a reply/bounce), so prev is stale too.
-      setEntries(prev); setError(e.message || 'Action failed.'); onOutreachChange?.(); return false;
+      setEntries(prev); setError(integrationErrorMessage(e, 'Action failed.')); onOutreachChange?.(); return false;
     }
     finally { setPendingId(null); }
   }
@@ -147,7 +153,7 @@ export default function OutreachTimeline({ jobId, contacts = [], outreachEntries
   async function handleRetry(entry) {
     setError(''); setPendingId(entry.id);
     try { await retryOutreach(entry.id); await onOutreachChange?.(); }
-    catch (e) { setError(e.message || 'Retry failed.'); }
+    catch (e) { setError(integrationErrorMessage(e, 'Retry failed.')); }
     finally { setPendingId(null); }
   }
 
@@ -189,6 +195,12 @@ export default function OutreachTimeline({ jobId, contacts = [], outreachEntries
 
       {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
       {notice && <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700">{notice}</div>}
+      {entries.some(entry => entry.channel === 'email' && entry.status === 'draft' && entry.provider !== 'agentmail') && !gmailOk && (
+        <Link to="/settings" className="mb-3 inline-block text-xs text-cyan-700 underline">Connect Gmail in Settings</Link>
+      )}
+      {entries.some(entry => entry.channel === 'email' && entry.status === 'failed' && entry.provider === 'agentmail') && !agentmailOk && (
+        <Link to="/settings" className="mb-3 inline-block text-xs text-cyan-700 underline">Connect AgentMail in Settings</Link>
+      )}
 
       {entries.length > 0 && (
         <div className="space-y-6">
@@ -283,15 +295,18 @@ export default function OutreachTimeline({ jobId, contacts = [], outreachEntries
                               </button>
                             )}
                             {isEmail && entry.status === 'draft' && entry.provider !== 'agentmail' && (
-                              <button type="button" disabled={isPending}
+                              <button type="button" disabled={!gmailOk || isPending}
+                                title={gmailOk ? '' : 'Connect Gmail in Settings'}
                                 onClick={() => updateEntryOptimistically(entry.id, { status: 'gmail_draft' }, () => createGmailDraft(entry.id))}
                                 className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
                                 Create Gmail Draft
                               </button>
                             )}
                             {isEmail && entry.status === 'failed' && entry.provider === 'agentmail' && (
-                              <button type="button" disabled={isPending}
+                              <button type="button"
                                 onClick={() => handleRetry(entry)}
+                                title={agentmailOk ? '' : 'Connect AgentMail in Settings'}
+                                disabled={!agentmailOk || isPending}
                                 className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
                                 Retry
                               </button>

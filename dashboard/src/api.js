@@ -3,9 +3,11 @@ const API_BASE = '/api';
 async function parseResponse(res) {
   if (!res.ok) {
     const text = await res.text();
-    let msg = `Request failed: ${res.status}`;
-    try { msg = JSON.parse(text).error || msg; } catch { msg = text || msg; }
-    throw new Error(msg);
+    let body = {};
+    try { body = JSON.parse(text); } catch { /* not json */ }
+    const err = new Error(body.error || text || `Request failed: ${res.status}`);
+    Object.assign(err, body, { status: res.status });
+    throw err;
   }
   if (res.status === 204) return null;
   return res.headers.get('content-type')?.includes('application/json') ? res.json() : res.text();
@@ -271,5 +273,115 @@ export async function passSourcedJob(id, reason = null) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(reason ? { reason } : {}),
+  }));
+}
+
+// ── PROFILE, SETTINGS & ONBOARDING ───────────────────────────────────────────
+
+export async function fetchRegions() {
+  const data = await parseResponse(await fetch(`${API_BASE}/profile/regions`));
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchRegionPresets() {
+  const data = await parseResponse(await fetch(`${API_BASE}/profile/region-presets`));
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchProfile() {
+  try { return await parseResponse(await fetch(`${API_BASE}/profile`)); }
+  catch (err) { if (err.status === 404) return null; throw err; }
+}
+
+export async function saveProfile(profile) {
+  return parseResponse(await fetch(`${API_BASE}/profile`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile),
+  }));
+}
+
+export async function uploadPhoto(file) {
+  const data = new FormData(); data.append('photo', file);
+  return parseResponse(await fetch(`${API_BASE}/profile/photo`, { method: 'POST', body: data }));
+}
+
+export async function deletePhoto() {
+  return parseResponse(await fetch(`${API_BASE}/profile/photo`, { method: 'DELETE' }));
+}
+
+export async function fetchSettings() {
+  return parseResponse(await fetch(`${API_BASE}/settings`));
+}
+
+export async function saveSettings(partial) {
+  return parseResponse(await fetch(`${API_BASE}/settings`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(partial),
+  }));
+}
+
+export async function testLlm() {
+  return parseResponse(await fetch(`${API_BASE}/settings/llm/test`, { method: 'POST' }));
+}
+
+export async function fetchIntegrations() {
+  const data = await parseResponse(await fetch(`${API_BASE}/integrations`));
+  return Array.isArray(data) ? data : [];
+}
+
+export async function saveIntegration(id, config) {
+  return parseResponse(await fetch(`${API_BASE}/integrations/${encodeURIComponent(id)}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config),
+  }));
+}
+
+export async function testIntegration(id) {
+  return parseResponse(await fetch(`${API_BASE}/integrations/${encodeURIComponent(id)}/test`, { method: 'POST' }));
+}
+
+export async function uploadGmailCredentials(file) {
+  const data = new FormData(); data.append('credentials', file);
+  return parseResponse(await fetch(`${API_BASE}/gmail/credentials`, { method: 'POST', body: data }));
+}
+
+export async function disconnectGmail() {
+  return parseResponse(await fetch(`${API_BASE}/gmail/disconnect`, { method: 'POST' }));
+}
+
+export async function fetchScheduler() {
+  const data = await parseResponse(await fetch(`${API_BASE}/scheduler`));
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchSetupStatus() {
+  return parseResponse(await fetch(`${API_BASE}/setup/status`));
+}
+
+export async function uploadCv(cvFile, linkedinFile) {
+  const data = new FormData(); data.append('cv', cvFile);
+  if (linkedinFile) data.append('linkedin', linkedinFile);
+  return parseResponse(await fetch(`${API_BASE}/onboarding/upload`, { method: 'POST', body: data }));
+}
+
+export async function startDraft() {
+  return parseResponse(await fetch(`${API_BASE}/onboarding/draft`, { method: 'POST' }));
+}
+
+export async function startGaps(source, answers) {
+  return parseResponse(await fetch(`${API_BASE}/onboarding/gaps`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source, answers }),
+  }));
+}
+
+export async function pollTask(taskId) {
+  return parseResponse(await fetch(`${API_BASE}/onboarding/draft/${encodeURIComponent(taskId)}`));
+}
+
+export async function fetchProfileSource() {
+  try { return await parseResponse(await fetch(`${API_BASE}/onboarding/profile-source`)); }
+  catch (err) { if (err.status === 404) return null; throw err; }
+}
+
+export async function saveProfileSource(source) {
+  return parseResponse(await fetch(`${API_BASE}/onboarding/profile-source`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(source),
   }));
 }

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJobs } from '../api.js';
 import JobTable from '../components/JobTable.jsx';
+import useRegions from '../hooks/useRegions.js';
+import { regionLabel } from '../utils/regions.js';
 
 const STATUSES = ['new','generating','cv_ready','applied','sent','reply','interview','offer','rejected'];
 const STATUS_LABELS = { new:'New', generating:'Generating', cv_ready:'CV Ready', applied:'Applied', sent:'Sent', reply:'Reply', interview:'Interview', offer:'Offer', rejected:'Rejected' };
-const GEOS = ['gcc','india','eu'];
-const GEO_LABELS = { gcc:'GCC', india:'India', eu:'EU' };
-
 export default function Pipeline() {
+  const { regions } = useRegions();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,17 +39,25 @@ export default function Pipeline() {
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const knownRegions = new Set(regions.map(region => region.id));
     return jobs.filter(j => {
       const geo = (j.geography || '').toLowerCase();
+      const matchesGeo = !geoFilter.length || geoFilter.includes(geo) ||
+        (geoFilter.includes('other') && Boolean(geo) && geo !== 'auto' && !knownRegions.has(geo));
       return (!statusFilter.length || statusFilter.includes(j.status)) &&
-        (!geoFilter.length || geoFilter.includes(geo)) &&
+        matchesGeo &&
         (!q || (j.company||'').toLowerCase().includes(q) || (j.role||'').toLowerCase().includes(q));
     }).sort((a, b) => {
       if (sort === 'score') return (b.ats_score ?? -1) - (a.ats_score ?? -1);
       if (sort === 'company') return (a.company||'').localeCompare(b.company||'');
       return new Date(b.created_at||0) - new Date(a.created_at||0);
     });
-  }, [jobs, statusFilter, geoFilter, sort, search]);
+  }, [jobs, statusFilter, geoFilter, sort, search, regions]);
+
+  const unknownGeographies = jobs.some(job => {
+    const geography = (job.geography || '').toLowerCase();
+    return geography && geography !== 'auto' && !regions.some(region => region.id === geography);
+  });
 
   function toggle(list, set, val) { set(list.includes(val) ? list.filter(v => v !== val) : [...list, val]); }
   function openAdd() { window.dispatchEvent(new CustomEvent('open-add-job')); }
@@ -76,14 +84,14 @@ export default function Pipeline() {
           <div>
             <div className="mb-2 text-sm font-medium text-slate-400">Geography</div>
             <div className="flex gap-2">
-              {GEOS.map(g => (
-                <button key={g} type="button" onClick={() => toggle(geoFilter, setGeoFilter, g)}
+              {[...regions.map(region => ({ id: region.id, label: region.label })), ...(unknownGeographies ? [{ id: 'other', label: 'Other' }] : [])].map(({ id, label }) => (
+                <button key={id} type="button" onClick={() => toggle(geoFilter, setGeoFilter, id)}
                   className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
-                    geoFilter.includes(g)
+                    geoFilter.includes(id)
                       ? 'border-cyan-500 bg-cyan-500/10 text-cyan-400'
                       : 'border-slate-600 text-slate-400 hover:border-slate-500 hover:bg-slate-700 hover:text-white'
                   }`}>
-                  {GEO_LABELS[g]}
+                  {id === 'other' ? label : regionLabel(regions, id)}
                 </button>
               ))}
             </div>

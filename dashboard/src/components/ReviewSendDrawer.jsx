@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { prepareOutreach, sendOutreach } from '../api.js';
+import useIntegrations from '../hooks/useIntegrations.js';
+import { integrationErrorMessage } from '../utils/integrations.js';
 
 export default function ReviewSendDrawer({ entry, onClose, onSent, onUncertain, onRequestRedraft }) {
+  const { isConnected } = useIntegrations();
+  const agentmailOk = isConnected('agentmail');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [prepared, setPrepared] = useState(null);
@@ -9,14 +14,20 @@ export default function ReviewSendDrawer({ entry, onClose, onSent, onUncertain, 
 
   useEffect(() => {
     let cancelled = false;
+    if (!agentmailOk) {
+      setLoading(false);
+      setError('Connect AgentMail in Settings');
+      setPrepared(null);
+      return () => { cancelled = true; };
+    }
     setLoading(true);
     setError('');
     prepareOutreach(entry.id)
       .then(data => { if (!cancelled) setPrepared(data); })
-      .catch(e => { if (!cancelled) setError(e.message || 'Failed to prepare for review.'); })
+      .catch(e => { if (!cancelled) setError(integrationErrorMessage(e, 'Failed to prepare for review.')); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [entry.id]);
+  }, [entry.id, agentmailOk]);
 
   async function handleSend() {
     if (!prepared || !prepared.can_send) return;
@@ -31,7 +42,7 @@ export default function ReviewSendDrawer({ entry, onClose, onSent, onUncertain, 
       }
       onClose();
     } catch (e) {
-      setError(e.message || 'Send failed.');
+      setError(integrationErrorMessage(e, 'Send failed.'));
     } finally {
       setSending(false);
     }
@@ -48,6 +59,7 @@ export default function ReviewSendDrawer({ entry, onClose, onSent, onUncertain, 
         <div className="space-y-4 p-6">
           {loading && <p className="text-sm text-gray-500">Preparing…</p>}
           {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+          {!agentmailOk && <Link to="/settings" className="text-sm text-indigo-700 underline">Connect AgentMail in Settings</Link>}
 
           {prepared && !loading && (
             <>
@@ -84,7 +96,7 @@ export default function ReviewSendDrawer({ entry, onClose, onSent, onUncertain, 
         </div>
 
         <div className="sticky bottom-0 flex gap-2 border-t border-gray-200 bg-white px-6 py-4">
-          <button type="button" disabled={!prepared || sending || !prepared.can_send} onClick={handleSend}
+          <button type="button" disabled={!agentmailOk || !prepared || sending || !prepared.can_send} onClick={handleSend}
             title={prepared && !prepared.can_send ? prepared.cannot_send_reason : undefined}
             className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
             {sending && <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-white" />}

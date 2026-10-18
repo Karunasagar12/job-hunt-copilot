@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { createJob, matchLinkedIn } from '../api.js';
+import { Link } from 'react-router-dom';
+import useIntegrations from '../hooks/useIntegrations.js';
+import useRegions from '../hooks/useRegions.js';
+import { regionOptions } from '../utils/regions.js';
+import { integrationErrorMessage } from '../utils/integrations.js';
 
 const EMPTY_CONTACT = { linkedin_url: '', name: '', title: '', email: '', contact_type: 'hiring_manager' };
 
@@ -12,6 +17,10 @@ function initForm() {
 }
 
 export default function AddJobForm({ isOpen, onClose, onCreated }) {
+  const { isConnected } = useIntegrations();
+  const { regions } = useRegions();
+  const fullenrichOk = isConnected('fullenrich');
+  const geographyOptions = regionOptions(regions, { includeAuto: true });
   const [form, setForm] = useState(initForm);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -47,7 +56,7 @@ export default function AddJobForm({ isOpen, onClose, onCreated }) {
         } : c),
       }));
     } catch (err) {
-      setAutofillError(`Contact ${i + 1}: ${err.message || 'Apollo lookup failed'}`);
+      setAutofillError(`Contact ${i + 1}: ${integrationErrorMessage(err, 'FullEnrich lookup failed.')}`);
     } finally {
       setAutofillingIdx(null);
     }
@@ -139,10 +148,7 @@ export default function AddJobForm({ isOpen, onClose, onCreated }) {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Geography</label>
                 <select value={form.geography} onChange={e => set('geography', e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500">
-                  <option value="auto">Auto-detect</option>
-                  <option value="gcc">GCC</option>
-                  <option value="india">India</option>
-                  <option value="eu">EU</option>
+                  {geographyOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </div>
               <div>
@@ -164,7 +170,8 @@ export default function AddJobForm({ isOpen, onClose, onCreated }) {
                         placeholder="LinkedIn profile URL (auto-fill)"
                         className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
                       <button type="button" onClick={() => handleAutofill(i)}
-                        disabled={!c.linkedin_url.trim() || autofillingIdx === i}
+                        disabled={!fullenrichOk || !c.linkedin_url.trim() || autofillingIdx === i}
+                        title={fullenrichOk ? '' : 'Connect FullEnrich in Settings'}
                         className="flex shrink-0 items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-40">
                         {autofillingIdx === i && (
                           <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-700 border-t-transparent" />
@@ -193,6 +200,7 @@ export default function AddJobForm({ isOpen, onClose, onCreated }) {
                 ))}
               </div>
               {autofillError && <p className="mt-2 text-sm text-red-600">{autofillError}</p>}
+              {!fullenrichOk && <Link to="/settings" className="text-xs text-cyan-400 underline">Connect FullEnrich in Settings</Link>}
             </div>
           </fieldset>
 
