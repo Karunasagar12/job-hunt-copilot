@@ -28,7 +28,6 @@ from flask_cors import CORS
 
 import fullenrich_client
 import db
-import gmail_client
 import agentmail_client
 import llm_client
 import outreach_manager
@@ -479,6 +478,7 @@ def mark_replied(contact_id):
 
 
 def _cancel_contact_touchpoints(contact_id):
+    import gmail_client
     """Cancel a contact's pending touchpoints and delete any live Gmail
     drafts. Returns the number of touchpoints cancelled."""
     cancelled = db.cancel_pending_touchpoints(contact_id)
@@ -511,6 +511,7 @@ def dismiss_uncertain(entry_id):
 
 @app.get("/api/inbox-digest/contact/<int:contact_id>/thread")
 def inbox_digest_thread(contact_id):
+    import gmail_client
     conn = db._get_conn()
     email1 = conn.execute(
         "SELECT provider, gmail_thread_id, agentmail_thread_id FROM outreach_log "
@@ -758,11 +759,7 @@ def _start_outreach(job_id):
             scheduled_date=tp["scheduled_date"],
             subject=tp["subject"],
             content=tp["content"],
-            # Cutover (October 2026): real AgentMail credentials are wired
-            # into production .env, poll_agentmail_inbox.py is hand-run and
-            # on a systemd timer, and this project is no longer bound to
-            # Gmail drafts -- new outreach now defaults to db.py's
-            # provider="agentmail" (not overridden here anymore).
+            provider='agentmail' if integrations.connected('agentmail') or not integrations.connected('gmail') else 'gmail',
         )
         created += 1
 
@@ -793,6 +790,7 @@ def _get_thread_params(conn, entry):
 
 @app.post("/api/outreach/<int:entry_id>/gmail-draft")
 def create_gmail_draft(entry_id):
+    import gmail_client
     gate = integrations.require('gmail')
     if gate is not None:
         return gate
@@ -938,6 +936,7 @@ def _cid_to_preview_html(html_body, inline_attachments):
 
 
 def _prepare_agentmail_content(conn, entry, contact, job):
+    import gmail_client
     """Shared by /prepare and /send -- returns a dict with finalized
     subject/text/html bodies, CV bytes (Email 1 only, read exactly once),
     reply target (Email 2/3 only), the inbox_id used, and a fingerprint.
@@ -1299,6 +1298,7 @@ def retry_outreach(entry_id):
 
 @app.post("/api/outreach/batch-draft")
 def batch_draft():
+    import gmail_client
     gate = integrations.require('gmail')
     if gate is not None:
         return gate

@@ -6,6 +6,7 @@ import sys
 from unittest.mock import patch
 
 import pytest
+import gmail_client
 
 for _mod in ("api.app", "db", "api.db"):
     sys.modules.pop(_mod, None)
@@ -38,8 +39,8 @@ def _install_fake_gmail_create_draft(monkeypatch, captured):
         captured.append(kwargs)
         return "draft-123"
 
-    monkeypatch.setattr(app_module.gmail_client, "create_draft", _fake_create_draft)
-    monkeypatch.setattr(app_module.gmail_client, "get_draft_thread_info", lambda draft_id: None)
+    monkeypatch.setattr(gmail_client, "create_draft", _fake_create_draft)
+    monkeypatch.setattr(gmail_client, "get_draft_thread_info", lambda draft_id: None)
 
 
 def test_placeholder_regex_matches_all_named_tokens():

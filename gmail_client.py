@@ -9,28 +9,24 @@ import os
 import paths
 import profile as prof
 import re
+import tempfile
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Any
 
-GOOGLE_PACKAGES_INSTALL_COMMAND = (
-    "pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client"
-)
 
-try:
-    from google.auth.exceptions import RefreshError, TransportError
-    from google.auth.transport.requests import Request
-    from google.oauth2.credentials import Credentials
-    from google_auth_oauthlib.flow import InstalledAppFlow
-    from googleapiclient.discovery import build
-    from googleapiclient.errors import HttpError
-except ImportError as exc:
-    raise ImportError(
-        "Google API packages are required. Install them with: "
-        f"{GOOGLE_PACKAGES_INSTALL_COMMAND}"
-    ) from exc
+def _google():
+    try:
+        from google.auth.exceptions import RefreshError, TransportError
+        from google.auth.transport.requests import Request
+        from google.oauth2.credentials import Credentials
+        from googleapiclient.discovery import build
+        from googleapiclient.errors import HttpError
+        return Credentials, Request, RefreshError, TransportError, build, HttpError
+    except ImportError as exc:
+        raise RuntimeError('Gmail support needs the Google packages (included in the Docker image).') from exc
 
 
 SCOPES = [
@@ -40,6 +36,7 @@ SCOPES = [
 ]
 
 _LOGGER = logging.getLogger(__name__)
+REDIRECT_URI = 'http://localhost:8080/api/gmail/callback'
 
 
 def _resolve_path_from_env(env_var: str, default_filename: str) -> Path:
@@ -58,13 +55,48 @@ def _token_path() -> Path:
     return _resolve_path_from_env("GMAIL_TOKEN_PATH", "token.json")
 
 
-def _save_credentials(creds: Credentials, token_path: Path) -> None:
+def _save_credentials(creds: Any, token_path: Path) -> None:
+    _save_private_text(creds.to_json(), token_path)
+
+
+def _save_private_text(value: str, target: Path) -> None:
+    """Replace credential files atomically and keep private file permissions."""
+    temporary = None
     try:
-        token_path.parent.mkdir(parents=True, exist_ok=True)
-        token_path.write_text(creds.to_json(), encoding="utf-8")
-        os.chmod(token_path, 0o600)
-    except OSError as exc:
-        raise OSError(f"Failed to save Gmail token at {token_path}: {exc}") from exc
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=target.parent, prefix='.gmail-', delete=False) as stream:
+            temporary = stream.name
+            os.chmod(temporary, 0o600)
+            stream.write(value)
+        os.replace(temporary, target)
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def _flow(state=None):
+    if not _credentials_path().is_file():
+        raise RuntimeError('Gmail credentials not uploaded — see Settings -> Gmail')
+    try:
+        from google_auth_oauthlib.flow import Flow
+    except ImportError as exc:
+        raise RuntimeError('Gmail support needs the Google packages (included in the Docker image).') from exc
+    return Flow.from_client_secrets_file(str(_credentials_path()), scopes=SCOPES,
+                                       redirect_uri=REDIRECT_URI, state=state)
+
+
+def authorization_url(state: str) -> str:
+    flow = _flow(state)
+    url, _ = flow.authorization_url(access_type='offline', prompt='consent', state=state)
+    return url
+
+
+def finish_authorization(code: str, state: str) -> None:
+    # ponytail: localhost-only redirect needs OAuthlib's HTTP transport exception.
+    os.environ.setdefault('OAUTHLIB_INSECURE_TRANSPORT', '1')
+    flow = _flow(state)
+    flow.fetch_token(code=code)
+    _save_credentials(flow.credentials, _token_path())
 
 
 def get_service() -> Any:
@@ -72,41 +104,30 @@ def get_service() -> Any:
     credentials_path = _credentials_path()
     token_path = _token_path()
 
-    if not credentials_path.exists():
-        raise FileNotFoundError(
-            f"Gmail credentials not found at {credentials_path}. "
-            "See BUILD_SPEC.md §9 for setup."
-        )
+    if not credentials_path.is_file():
+        raise RuntimeError('Gmail credentials not uploaded — see Settings -> Gmail')
+    if not token_path.is_file():
+        raise RuntimeError('Gmail not connected — connect it in Settings.')
+    Credentials, Request, RefreshError, TransportError, build, _ = _google()
 
     creds: Credentials | None = None
 
-    if token_path.exists():
-        try:
-            creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
-        except (ValueError, OSError) as exc:
-            _LOGGER.warning("Could not load Gmail token: %s", exc)
-            creds = None
+    try:
+        creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
+    except (ValueError, OSError, TypeError, AttributeError):
+        _LOGGER.warning("Could not load Gmail token")
+        creds = None
 
     if creds and creds.expired and creds.refresh_token:
         try:
             creds.refresh(Request())
             _save_credentials(creds, token_path)
-        except (RefreshError, TransportError) as exc:
-            _LOGGER.warning("Failed to refresh Gmail OAuth token: %s", exc)
+        except (RefreshError, TransportError, ValueError, TypeError, AttributeError):
+            _LOGGER.warning("Failed to refresh Gmail OAuth token")
             creds = None
 
     if not creds or not creds.valid:
-        try:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                str(credentials_path),
-                SCOPES,
-            )
-            creds = flow.run_local_server(port=0)
-            _save_credentials(creds, token_path)
-        except FileNotFoundError:
-            raise
-        except Exception as exc:
-            raise RuntimeError(f"Failed to authenticate with Gmail OAuth: {exc}") from exc
+        raise RuntimeError('Gmail not connected — connect it in Settings.')
 
     try:
         return build("gmail", "v1", credentials=creds)
@@ -229,7 +250,9 @@ def check_draft_sent(draft_id: str) -> bool | None:
     draft's own ID (not the thread) matters because Email 2/3 share a Gmail thread with
     Email 1 — a thread-level 'was anything sent' check would falsely flag Email 2/3 as
     sent the moment Email 1 is sent."""
+    HttpError = ()
     try:
+        HttpError = _google()[-1]
         service = get_service()
         service.users().drafts().get(userId="me", id=draft_id).execute()
         return False
@@ -479,6 +502,7 @@ def find_sent_thread(to_email: str, subject: str) -> dict | None:
 
 if __name__ == "__main__":
     from types import SimpleNamespace
+    HttpError = _google()[-1]
 
     class _FakeDraftsResource:
         def __init__(self, outcome):

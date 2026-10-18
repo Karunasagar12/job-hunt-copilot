@@ -38,5 +38,9 @@ def poll_sent_drafts() -> int:
 
 
 if __name__ == "__main__":
+    import integrations
+    if not integrations.connected("gmail"):
+        print(" gmail not connected; skipping")
+        raise SystemExit(0)
     n = poll_sent_drafts()
     print(f"poll_gmail_sent: {n} entries marked sent")

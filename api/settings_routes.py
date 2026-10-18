@@ -1,7 +1,9 @@
 """Profile settings and photo endpoints."""
 from pathlib import Path
+import json
+import secrets
 
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, jsonify, redirect, request, send_file
 from werkzeug.exceptions import BadRequest, RequestEntityTooLarge
 
 import paths
@@ -11,10 +13,73 @@ import integrations
 
 settings_bp = Blueprint('settings', __name__)
 PHOTO_EXT = {'.jpg': '.jpg', '.jpeg': '.jpg', '.png': '.png'}
+# ponytail: restarting during consent clears these; reconnect from Settings.
+_gmail_oauth_states = set()
 
 
 def _err(msg, status=400, **extra):
     return jsonify({'error': msg, 'status': status, **extra}), status
+
+
+@settings_bp.post('/api/gmail/credentials')
+def upload_gmail_credentials():
+    import gmail_client
+    uploaded = request.files.get('credentials')
+    if uploaded is None:
+        return _err('Gmail credentials JSON file is required')
+    try:
+        value = json.loads(uploaded.read())
+    except (ValueError, UnicodeError):
+        return _err('Gmail credentials must be valid JSON')
+    if not isinstance(value, dict):
+        return _err('Gmail credentials must be a JSON object')
+    client = value.get('web', value.get('installed'))
+    if not isinstance(client, dict) or not all(
+            isinstance(client.get(key), str) and client[key].strip()
+            for key in ('client_id', 'client_secret')):
+        return _err('Gmail credentials need a web or installed client with client_id and client_secret')
+    try:
+        gmail_client._save_private_text(json.dumps(value), gmail_client._credentials_path())
+    except OSError:
+        return _err('Could not save Gmail credentials. Check the data directory.', 500)
+    return jsonify({'ok': True})
+
+
+@settings_bp.get('/api/gmail/connect')
+def connect_gmail():
+    import gmail_client
+    state = secrets.token_urlsafe(24)
+    try:
+        url = gmail_client.authorization_url(state)
+    except Exception:
+        return _err('Could not connect Gmail. Upload valid credentials in Settings -> Gmail and try again.')
+    _gmail_oauth_states.add(state)
+    return redirect(url)
+
+
+@settings_bp.get('/api/gmail/callback')
+def gmail_callback():
+    import gmail_client
+    state = request.args.get('state')
+    if not state or state not in _gmail_oauth_states:
+        return _err('Invalid or expired Gmail sign-in state. Connect again in Settings.')
+    _gmail_oauth_states.discard(state)
+    code = request.args.get('code')
+    if not code:
+        return _err('Gmail sign-in did not return a code. Connect again in Settings.')
+    try:
+        gmail_client.finish_authorization(code, state)
+    except Exception:
+        return _err('Gmail sign-in failed. Check your credentials and connect again in Settings.')
+    settings.update({'integrations': {'gmail': {'last_test': None}}})
+    return redirect('http://127.0.0.1:8080/settings?gmail=connected')
+
+
+@settings_bp.post('/api/gmail/disconnect')
+def disconnect_gmail():
+    import gmail_client
+    gmail_client._token_path().unlink(missing_ok=True)
+    return jsonify({'ok': True})
 
 
 @settings_bp.get('/api/integrations')

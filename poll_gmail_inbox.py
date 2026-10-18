@@ -129,5 +129,9 @@ def run_inbox_scan():
 
 
 if __name__ == "__main__":
+    import integrations
+    if not integrations.connected("gmail"):
+        print(" gmail not connected; skipping")
+        raise SystemExit(0)
     n = run_inbox_scan()
     print(f"poll_gmail_inbox: processed {n} message(s)")

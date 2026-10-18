@@ -3,7 +3,7 @@ import pytest
 import api.app as app_module
 
 db = app_module.db
-gmail_client = app_module.gmail_client
+import gmail_client
 app_module.app.config["TESTING"] = True
 
 
