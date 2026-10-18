@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import { firstIncompleteStep, setupGateMode, shouldGate } from './setup.js';
+
+const store = {};
+globalThis.localStorage = { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = v; } };
+const p1 = { regions: [{ id: 'eu' }] };
+assert.equal(firstIncompleteStep({ llm: false, profile: false, knowledge: false }, null), 'llm');
+assert.equal(firstIncompleteStep({ llm: true, profile: false, knowledge: false }, null), 'profile');
+assert.equal(firstIncompleteStep({ llm: true, profile: true, knowledge: false }, p1), 'regions');
+store['jhc.regionsConfirmed'] = '1';
+assert.equal(firstIncompleteStep({ llm: true, profile: true, knowledge: false }, p1), 'cv');
+assert.equal(firstIncompleteStep({ llm: true, profile: true, knowledge: true }, p1), 'integrations');
+store['jhc.integrationsSeen'] = '1';
+assert.equal(firstIncompleteStep({ llm: true, profile: true, knowledge: true }, p1), 'done');
+assert.equal(shouldGate('/pipeline', { complete: false }), true);
+assert.equal(shouldGate('/setup', { complete: false }), false);
+assert.equal(shouldGate('/pipeline', { complete: true }), false);
+assert.equal(setupGateMode('/pipeline', null), 'loading');
+assert.equal(setupGateMode('/pipeline', null, 'offline'), 'error');
+assert.equal(setupGateMode('/pipeline', { complete: false }), 'redirect');
+assert.equal(setupGateMode('/pipeline', { complete: true }), 'content');
+console.log('setup.check ok');

@@ -8,11 +8,14 @@ import Shortlist from './pages/Shortlist.jsx';
 import Today from './pages/Today.jsx';
 import Settings from './pages/Settings.jsx';
 import Profile from './pages/Profile.jsx';
+import Setup from './pages/Setup.jsx';
+import SetupGate from './components/SetupGate.jsx';
 
 export default function App() {
   return (
     <Routes>
-      <Route element={<Layout />}>
+      <Route path="/setup" element={<Setup />} />
+      <Route element={<SetupGate><Layout /></SetupGate>}>
         <Route index element={<Navigate to="/pipeline" replace />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/job/:id" element={<JobDetail />} />

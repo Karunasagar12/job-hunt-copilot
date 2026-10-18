@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "check": "node src/utils/linkedin.check.mjs && node src/utils/regions.check.mjs && node src/utils/knowledge.check.mjs && node src/routes.check.mjs",
+    "check": "node src/utils/linkedin.check.mjs && node src/utils/regions.check.mjs && node src/utils/knowledge.check.mjs && node src/utils/setup.check.mjs && node src/utils/llmSetup.check.mjs && node src/routes.check.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
