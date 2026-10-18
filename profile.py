@@ -236,6 +236,8 @@ def render_identity_md(p):
 
 
 def fill_placeholders(text, p=None):
+    if not re.search(r'{{([^{}]*)}}', text):
+        return text
     p = load_profile() if p is None else p
     def replace(match):
         key = match.group(1).strip()

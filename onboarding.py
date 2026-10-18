@@ -104,11 +104,12 @@ def parse_llm_json(text: str) -> dict:
     """Accept an object with optional Markdown fences or surrounding prose."""
     if isinstance(text, str):
         decoder = json.JSONDecoder()
-        for match in re.finditer(r'\{', text):
+        match = re.search(r'\{', text)
+        if match:
             try:
                 value, _ = decoder.raw_decode(text[match.start():])
             except ValueError:
-                continue
+                value = None
             if isinstance(value, dict):
                 return value
     raise OnboardingError('The profile response did not contain a valid JSON object. Please redraft.')

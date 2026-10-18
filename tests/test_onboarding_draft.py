@@ -7,6 +7,8 @@ from threading import Event
 import pytest
 
 import onboarding as ob
+import profile as prof
+import skill_loader
 from tests.test_onboarding_extract import pdf, upload
 
 
@@ -27,10 +29,16 @@ def test_json_object_extraction(text):
     assert isinstance(ob.parse_llm_json(text), dict)
 
 
-@pytest.mark.parametrize('text', ['', '[]', '{broken}', '{"roles":'])
+@pytest.mark.parametrize('text', ['', '[]', '{broken}', '{"roles":',
+    '{"roles":[{"company":"Acme Analytics","achievements":[{"text":"Delivered work"}]}], BROKEN}'])
 def test_json_invalid_is_readable(text):
     with pytest.raises(ob.OnboardingError, match='JSON'):
         ob.parse_llm_json(text)
+
+
+def test_placeholder_free_skill_load_does_not_require_profile(monkeypatch):
+    monkeypatch.setattr(prof, 'load_profile', lambda: (_ for _ in ()).throw(AssertionError('profile read')))
+    assert '<!-- skill: profile-builder -->' in skill_loader.load_skill('profile-builder')
 
 
 def test_validation_defaults_and_copy():
@@ -126,7 +134,8 @@ def test_existing_ids_preserved_but_fabricated_ids_rejected(monkeypatch):
     assert [a['id'] for a in result['roles'][0]['achievements']] == ['AA-02', 'AA-01', 'AA-03']
 
 
-@pytest.mark.parametrize('bad', ['broken JSON', '{"roles": {}}'])
+@pytest.mark.parametrize('bad', ['broken JSON', '{"roles": {}}',
+    '{"roles":[{"company":"Acme Analytics","achievements":[{"text":"Delivered work"}]}], BROKEN}'])
 def test_retry_once_for_invalid_json_or_schema(monkeypatch, bad):
     calls = []
     def call(system, prompt, **kwargs):
