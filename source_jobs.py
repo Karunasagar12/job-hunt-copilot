@@ -93,9 +93,12 @@ def load_config(path=None):
 
 def sourcing_ready(config=None):
     config = load_config() if config is None else config
+    budget = config['monthly_budget_usd']
+    caps = [loc['max_charge_usd'] for loc in config['locations']]
     return bool(config['titles'] and config['locations']
-                and 0 < config['monthly_budget_usd'] <= 5
-                and all(0 < loc['max_charge_usd'] <= 0.02 for loc in config['locations']))
+                and type(budget) in (int, float) and 0 < budget <= 5
+                and all(type(cap) in (int, float) and 0 < cap < float('inf') for cap in caps)
+                and any(cap <= budget for cap in caps))
 
 
 def linkedin_job_id(url, fallback_id=None):

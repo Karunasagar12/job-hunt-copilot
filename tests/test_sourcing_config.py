@@ -87,3 +87,50 @@ def test_explicit_file_config_still_loads_unchanged(tmp_path):
     path = tmp_path / 'legacy.json'
     path.write_text(json.dumps(legacy), encoding='utf-8')
     assert sj.load_config(path) == legacy
+
+
+@pytest.mark.parametrize('budget,cap', [
+    (0.00001, 0.02), ('invalid', 0.02), (None, 0.02),
+    (float('inf'), 0.02), (float('nan'), 0.02),
+    (5, 'invalid'), (5, None), (5, float('inf')), (5, float('nan')),
+    (5, 0), (5, -0.01),
+])
+def test_supplied_invalid_or_unaffordable_config_skips_before_work(budget, cap, monkeypatch):
+    cfg = {
+        'actor': 'automation-lab~linkedin-jobs-scraper', 'monthly_budget_usd': budget,
+        'titles': ['Product Manager'],
+        'locations': [dict(linkedin_location='Paris, France', geo='eu', remote_only=False,
+                           max_jobs=25, max_charge_usd=cap)],
+    }
+    calls = []
+    monkeypatch.setattr(sj, 'build_system_prompt', lambda: calls.append('prompt'))
+    monkeypatch.setattr(sj.requests, 'post', lambda *args, **kwargs: calls.append('provider'))
+    out = sj.run(token='tok', config=cfg, usage=lambda *args: calls.append('usage'))
+    assert calls == []
+    assert not sj.sourcing_ready(cfg)
+    assert out['outcome'] == 'skipped'
+    latest = db.get_latest_sourcing_run()
+    assert latest['outcome'] == 'skipped' and latest['total_usd'] == 0
+    assert latest['locations'][0]['status'] == 'skipped'
+
+
+def test_valid_supplied_caps_keep_legacy_reservation_behavior(monkeypatch):
+    cfg = {
+        'actor': 'automation-lab~linkedin-jobs-scraper', 'monthly_budget_usd': 0.03,
+        'titles': ['Product Manager'],
+        'locations': [dict(linkedin_location=name, geo='eu', remote_only=False,
+                           max_jobs=25, max_charge_usd=cap)
+                      for name, cap in [('Paris', 0.03), ('Berlin', 0.04)]],
+    }
+    launched = []
+    monkeypatch.setattr(sj, 'build_system_prompt', lambda: 'profile')
+
+    def fetch(loc, *args):
+        launched.append(loc['linkedin_location'])
+        return [], dict(location=loc['linkedin_location'], status='ok', scraped=0, usd=0)
+
+    assert sj.sourcing_ready(cfg)
+    out = sj.run(token='tok', config=cfg, usage=lambda token: 0, fetch=fetch)
+    assert launched == ['Paris']
+    assert out['outcome'] == 'partial'
+    assert [loc['status'] for loc in out['locations']] == ['ok', 'budget_exhausted']
