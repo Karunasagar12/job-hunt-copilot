@@ -2,6 +2,12 @@ data/
 .git/
 .venv/
 venv/
+.*-venv/
+.python/
+.uv-cache/
+.pytest-tmp/
+logs/
+tmp/
 **/__pycache__/
 **/node_modules/
 dashboard/dist/

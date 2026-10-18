@@ -120,6 +120,8 @@ def run_once(now_utc=None, runner=subprocess.run):
             code = result.returncode
             if code != 0:
                 print(f"Scheduled job {job['id']} failed: exit code {code}", flush=True)
+            else:
+                print(f"Scheduled job {job['id']} finished", flush=True)
         except Exception as exc:
             # Exception text may contain provider credentials or private data.
             print(f"Scheduled job {job['id']} failed: {type(exc).__name__}", flush=True)
@@ -131,6 +133,7 @@ def run_once(now_utc=None, runner=subprocess.run):
 
 
 def main():
+    print('[scheduler] started; checking for due jobs every 60s', flush=True)
     while True:
         try:
             run_once()

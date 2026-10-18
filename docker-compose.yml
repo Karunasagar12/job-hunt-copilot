@@ -10,6 +10,9 @@ services:
   scheduler:
     image: ghcr.io/karunasagar12/job-hunt-copilot:latest
     command: ["python", "scheduler.py"]
+    # The image's healthcheck probes the web server; the scheduler has none.
+    healthcheck:
+      disable: true
     volumes:
       - ./data:/data
     restart: unless-stopped

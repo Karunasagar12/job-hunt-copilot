@@ -29,7 +29,8 @@ ID=$(curl -fs -X POST http://127.0.0.1:8080/api/jobs -H 'Content-Type: applicati
 i=0
 while :; do
   S=$(curl -fs "http://127.0.0.1:8080/api/jobs/$ID/status" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("status",""))')
-  case "$S" in failed) echo "job failed"; exit 1;; generating|queued|pending|"") ;; *) break;; esac
+  # Wait for a terminal status; jobs pass through transient states (new, generating, ...).
+  case "$S" in cv_ready) break;; failed) echo "job failed"; exit 1;; esac
   i=$((i+1)); [ "$i" -ge 120 ] && { echo "timeout"; exit 1; }; sleep 2
 done
 ls data/output/*/*.pdf >/dev/null && echo "SMOKE OK"
