@@ -1,5 +1,6 @@
 """Profile settings and photo endpoints."""
 from pathlib import Path
+from datetime import datetime, timezone
 import json
 import secrets
 
@@ -136,6 +137,23 @@ def oversized_request(exc):
 def get_settings():
     value = settings.masked()
     return jsonify({'settings': value, 'load_error': settings.load_error()})
+
+
+@settings_bp.get('/api/scheduler')
+def get_scheduler():
+    import scheduler
+    now = datetime.now(timezone.utc)
+    state = scheduler.load_state()
+    ready = scheduler.ready_set()
+    schedule = settings.get('schedule')
+    tz = scheduler._profile_tz()
+    return jsonify([
+        {'id': job['id'], 'enabled': job['requires'] in ready,
+         'last_run': state['last_runs'].get(job['id']),
+         'next_run': scheduler.next_run(job, now, state['last_runs'].get(job['id']), schedule, tz).isoformat(),
+         'last_result': state['results'].get(job['id'])}
+        for job in scheduler.JOBS
+    ])
 
 
 @settings_bp.put('/api/settings')
