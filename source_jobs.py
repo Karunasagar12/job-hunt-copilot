@@ -122,7 +122,11 @@ def filter_reason(title, location, jd_text, location_cfg, countries):
     title = title or ""
     if len(jd_text or "") < MIN_JD_CHARS:
         return "short_description"
-    if not location_cfg.get("remote_only") and not any(c in (location or "").lower() for c in countries):
+    place = (location or "").lower()
+    # Providers may insert a region between the configured city and country.
+    targets = [[part.strip() for part in c.split(',') if part.strip()] for c in countries]
+    if not location_cfg.get("remote_only") and not any(
+            parts and all(part in place for part in parts) for parts in targets):
         return "location"
     m = NEG_ALWAYS.search(title)
     if m:

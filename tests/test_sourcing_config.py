@@ -134,3 +134,33 @@ def test_valid_supplied_caps_keep_legacy_reservation_behavior(monkeypatch):
     assert launched == ['Paris']
     assert out['outcome'] == 'partial'
     assert [loc['status'] for loc in out['locations']] == ['ok', 'budget_exhausted']
+
+
+@pytest.mark.parametrize('posting_location,job_id,expected_status', [
+    ('Paris, Île-de-France, France', '9300009901', 'new'),
+    ('Lyon, France', '9300009902', 'filtered'),
+])
+def test_generated_city_target_matches_provider_location_components(
+        monkeypatch, posting_location, job_id, expected_status):
+    configure(locations=['Paris, France'])
+    cfg = sj.load_config()
+    monkeypatch.setattr(sj, 'build_system_prompt', lambda: 'profile')
+
+    def fetch(loc, *args):
+        return [{
+            'id': job_id, 'title': 'Product Manager', 'companyName': 'Example Labs',
+            'location': posting_location,
+            'descriptionText': 'Product strategy and delivery requirements. ' * 20,
+            'url': f'https://www.linkedin.com/jobs/view/{job_id}/',
+        }], dict(location=loc['linkedin_location'], status='ok', scraped=1, usd=0)
+
+    out = sj.run(token='tok', config=cfg, usage=lambda token: 0, fetch=fetch,
+                 call=lambda *args, **kwargs: '{"fit_score":77,"reasons":[],"concerns":[]}')
+    assert out['outcome'] == 'success'
+    assert out['locations'][0]['new'] == int(expected_status == 'new')
+    assert out['locations'][0]['filtered'] == int(expected_status == 'filtered')
+    row = next(row for row in db.get_sourced_jobs(['new', 'filtered'])
+               if row['linkedin_job_id'] == job_id)
+    assert row['status'] == expected_status
+    assert row['filter_reason'] == (None if expected_status == 'new' else 'location')
+    assert row['fit_score'] == (77 if expected_status == 'new' else None)
