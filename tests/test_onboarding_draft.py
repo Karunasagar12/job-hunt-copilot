@@ -24,7 +24,8 @@ def ready():
 
 @pytest.mark.parametrize('text', ['{"roles": []}', '```json\n{"roles": []}\n```',
                                   'Here is the result: {"roles": []} Thank you.',
-                                  'before {"career": {"narrative": "brace } inside"}} after'])
+                                  'before {"career": {"narrative": "brace } inside"}} after',
+                                  'Example {not JSON} result: {"roles": []}'])
 def test_json_object_extraction(text):
     assert isinstance(ob.parse_llm_json(text), dict)
 

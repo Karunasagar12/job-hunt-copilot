@@ -104,14 +104,47 @@ def parse_llm_json(text: str) -> dict:
     """Accept an object with optional Markdown fences or surrounding prose."""
     if isinstance(text, str):
         decoder = json.JSONDecoder()
-        match = re.search(r'\{', text)
-        if match:
+        def matching_brace(start):
+            depth = 0
+            in_string = escaped = False
+            for index in range(start, len(text)):
+                char = text[index]
+                if in_string:
+                    if escaped:
+                        escaped = False
+                    elif char == '\\':
+                        escaped = True
+                    elif char == '"':
+                        in_string = False
+                elif char == '"':
+                    in_string = True
+                elif char == '{':
+                    depth += 1
+                elif char == '}':
+                    depth -= 1
+                    if depth == 0:
+                        return index + 1
+            return None
+
+        position = 0
+        while match := re.search(r'\{', text[position:]):
+            start = position + match.start()
             try:
-                value, _ = decoder.raw_decode(text[match.start():])
+                value, _ = decoder.raw_decode(text[start:])
             except ValueError:
-                value = None
+                # Skip an entire malformed brace-delimited region so a nested
+                # object cannot be mistaken for a valid top-level response.
+                end = matching_brace(start)
+                if end is None:
+                    break
+                position = end
+                continue
             if isinstance(value, dict):
                 return value
+            end = matching_brace(start)
+            if end is None:
+                break
+            position = end
     raise OnboardingError('The profile response did not contain a valid JSON object. Please redraft.')
 
 
