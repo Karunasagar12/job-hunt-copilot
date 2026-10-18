@@ -117,6 +117,10 @@ def job_status(job_id):
 
 @app.post("/api/jobs")
 def create_job():
+    import generate
+    missing = generate.setup_missing()
+    if missing:
+        return jsonify({"error": "setup_incomplete", "missing": missing, "status": 409}), 409
     data = request.json or {}
     jd_url = data.get("jd_url")
     jd_text = data.get("jd_text")
@@ -2042,6 +2046,10 @@ def latest_sourcing_run():
 
 @app.post("/api/sourced-jobs/<int:sourced_id>/approve")
 def approve_sourced_job(sourced_id):
+    import generate
+    missing = generate.setup_missing()
+    if missing:
+        return jsonify({"error": "setup_incomplete", "missing": missing, "status": 409}), 409
     try:
         result = db.approve_sourced_job(sourced_id)
     except LookupError:

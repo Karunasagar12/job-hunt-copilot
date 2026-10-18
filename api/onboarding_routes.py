@@ -4,6 +4,7 @@ from contextlib import ExitStack
 from flask import Blueprint, jsonify, request
 
 import onboarding
+import profile as prof
 
 onboarding_bp = Blueprint('onboarding', __name__)
 
@@ -46,7 +47,7 @@ def draft_profile():
         texts = onboarding.uploaded_text()
         if not texts['cv']:
             return _err('Upload a CV before drafting a profile.')
-        existing = None  # Task 18 wires existing profile
+        existing = onboarding.load_source()
         task_id = onboarding.start_task(onboarding.draft, texts['cv'], texts['linkedin'], existing)
     except onboarding.OnboardingError as exc:
         return _err(str(exc))
@@ -73,3 +74,25 @@ def profile_gaps():
     except onboarding.OnboardingError as exc:
         return _err(str(exc))
     return jsonify({'task_id': task_id})
+
+
+@onboarding_bp.get('/api/onboarding/profile-source')
+def get_profile_source():
+    try:
+        source = onboarding.load_source()
+    except (OSError, ValueError):
+        return _err('Could not read the saved profile source.', 500)
+    return jsonify(source) if source is not None else _err('No profile yet', 404)
+
+
+@onboarding_bp.put('/api/onboarding/profile-source')
+def put_profile_source():
+    try:
+        source = request.get_json(force=True) or {}
+        return jsonify(onboarding.save_source(source))
+    except onboarding.OnboardingError as exc:
+        return _err(str(exc), 400, unverified=getattr(exc, 'unverified', []))
+    except prof.ProfileError as exc:
+        return _err(str(exc), 400)
+    except OSError:
+        return _err('Could not save the profile source. Check the data directory.', 500)

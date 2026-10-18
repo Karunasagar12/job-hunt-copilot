@@ -15,17 +15,14 @@ Jane moved from operational analytics at Northwind Health to forecasting at Acme
 Seeking a collaborative team with meaningful opportunities to build useful models.
 
 ## Target Compensation
-| Geography | Range | Walk-away minimum |
-|---|---|---|
-| EU | 70K - 90K EUR/year | Discuss with employer |
+EU: 70K - 90K EUR/year; discuss with employer.
 
 ## Work Authorization
-| Geography | Status | Details |
-|---|---|---|
-| EU (France) | Example authorization | Fictional fixture; confirm actual eligibility before use |
+Example authorization in France; confirm actual eligibility before use.
 
 ## Notice Period
 One month in this fictional example.
 
 ## Target Roles
-Senior Data Scientist; Machine Learning Engineer.
+- Senior Data Scientist
+- Machine Learning Engineer

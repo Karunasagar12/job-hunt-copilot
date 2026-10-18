@@ -156,6 +156,17 @@ def get_scheduler():
     ])
 
 
+@settings_bp.get('/api/setup/status')
+def get_setup_status():
+    import generate
+    missing = set(generate.setup_missing())
+    llm = 'llm' not in missing
+    profile = 'profile' not in missing
+    knowledge = 'knowledge' not in missing
+    return jsonify({'llm': llm, 'profile': profile, 'knowledge': knowledge,
+                    'complete': llm and profile and knowledge})
+
+
 @settings_bp.put('/api/settings')
 def put_settings():
     try:

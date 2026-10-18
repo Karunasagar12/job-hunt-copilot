@@ -53,7 +53,8 @@ def setup_missing() -> list[str]:
         prof.load_profile()
     except prof.ProfileError:
         missing.append("profile")
-    if not all((paths.knowledge_dir() / name).is_file() for name in REQUIRED_KNOWLEDGE):
+    if ((paths.knowledge_dir() / '.profile-source-save-incomplete').exists()
+            or not all((paths.knowledge_dir() / name).is_file() for name in REQUIRED_KNOWLEDGE)):
         missing.append("knowledge")
     return missing
 

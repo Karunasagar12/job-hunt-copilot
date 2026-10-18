@@ -228,7 +228,7 @@ def render_identity_md(p):
     p = validate(p)
     lines = ['# Identity', '', '## Common']
     for label, key in (('Name', 'name'), ('Email', 'email'), ('LinkedIn', 'linkedin'), ('GitHub', 'github'), ('Title', 'headline')):
-        lines.append(f'{label}: {p[key]}')
+        lines.append(f'{label}: {p[key]}'.rstrip())
     lines.append(f"Photo: {p['photo'] or 'none'}")
     for region in p['regions']:
         lines.extend(['', f"## {region['label']}", f"Phone: {region['phone']}", f"Location: {region['location']}"])

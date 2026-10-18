@@ -55,7 +55,9 @@ def test_profile_missing(client):
     response = client.post('/api/profile/photo', data={'photo': (BytesIO(b'x'), 'x.jpg')})
     assert response.status_code == 404
     response = client.post('/api/jobs', json={'jd_text': 'Example job'})
-    assert response.status_code == 404 and response.is_json
+    assert response.status_code == 409 and response.json == {
+        'error': 'setup_incomplete', 'missing': ['profile'], 'status': 409,
+    }
 
 
 @pytest.mark.parametrize('filename,blob', [('image.gif', b'GIF89a'), ('image.jpg', b'not an image'), ('image.png', b'\x89PNG\r\n\x1a\n' + b'x' * (5 * 1024 * 1024))], ids=['gif', 'invalid-jpg', 'oversized'])

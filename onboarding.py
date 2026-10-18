@@ -14,6 +14,7 @@ from pypdf import PdfReader
 import paths
 import llm_client
 import skill_loader
+import profile as prof
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 EXTENSIONS = ('.pdf', '.docx')
@@ -247,7 +248,7 @@ def flag_unverified(source: dict, evidence: str) -> dict:
     supported = _numbers(evidence)
     for role in result['roles']:
         for achievement in role['achievements']:
-            numbers = _numbers(achievement['text'] + ' ' + achievement['metric'])
+            numbers = _numbers(achievement['text'] + ' ' + achievement['metric'] + ' ' + achievement['context'])
             achievement['unverified'] = bool(numbers - supported)
     return result
 
@@ -290,6 +291,7 @@ def validate_answers(answers):
 
 def apply_gaps(source: dict, answersByID: dict, evidence: str) -> dict:
     original = validate_source(source)
+    original_flags = {a['id']: a['unverified'] for r in original['roles'] for a in r['achievements']}
     answers = validate_answers(answersByID)
     known = {a['id'] for r in original['roles'] for a in r['achievements']}
     answers = {key: value for key, value in answers.items() if key in known and value.strip()}
@@ -307,6 +309,19 @@ def apply_gaps(source: dict, answersByID: dict, evidence: str) -> dict:
                 update = updates[achievement['id']]
                 achievement.update(text=update['text'], metric=update['metric'], needs_metric=False,
                                    unverified=update['unverified'])
+    # Only recheck achievements updated by this gap round, using their own
+    # answer with the shared CV/LinkedIn evidence. Untouched flags may reflect
+    # an explicit human confirmation from an earlier review.
+    shared_numbers = _numbers(evidence)
+    for role in original['roles']:
+        for achievement in role['achievements']:
+            identifier = achievement['id']
+            if identifier not in updates:
+                achievement['unverified'] = original_flags.get(identifier, achievement['unverified'])
+                continue
+            supported = shared_numbers | _numbers(answers.get(identifier, ''))
+            numbers = _numbers(achievement['text'] + ' ' + achievement['metric'] + ' ' + achievement['context'])
+            achievement['unverified'] = bool(numbers - supported)
     return original
 
 
@@ -339,3 +354,113 @@ def start_task(fn, *args) -> str:
 def task_status(task_id: str):
     with _task_lock:
         return deepcopy(_tasks.get(task_id))
+
+
+def _cell(value: str) -> str:
+    return " ".join(str(value or "").split()).replace("|", r"\|")
+
+
+def _date(value: str) -> str:
+    value = _cell(value)
+    if value.lower() == 'present':
+        return 'Present'
+    match = re.fullmatch(r'(\d{4})-(\d{2})', value)
+    return f'{match.group(2)}/{match.group(1)}' if match else value
+
+
+def _employment(source: dict) -> str:
+    out = ["# Employment Master", "", "RULE: Every metric in this file is verified by the candidate. The CV writer must ONLY use numbers that appear in this file.", "", "---", ""]
+    for role in source['roles']:
+        heading = f"## {_cell(role['company'])} — {_cell(role['title'])}"
+        if role['hidden']:
+            out += [f"{heading} (HIDDEN — skills only)", "", "### Skills Available for Knowledge Base (not attributed to this role)",
+                    _cell(', '.join(role['technologies'] + role['keywords'])), "", "---", ""]
+            continue
+        out += [heading, f"**Dates:** {_date(role['start'])} – {_date(role['end'])}", f"**Location:** {_cell(role['location'])}", "",
+                "### Company Description", _cell(role['description']), "", "### What I Owned", _cell(role['owned']), "",
+                "### Verified Achievements", "", "| ID | Achievement | Exact Metric | Context |", "|----|-------------|-------------|---------|"]
+        out += [f"| {a['id']} | {_cell(a['text'])} | {_cell(a['metric'])} | {_cell(a['context'])} |" for a in role['achievements']]
+        out += ["", "### Technologies Used", _cell(', '.join(role['technologies'])), "",
+                "### Keywords This Role Maps To", _cell(', '.join(role['keywords'])), "", "---", ""]
+    return '\n'.join(out).rstrip() + '\n'
+
+
+def _education(source: dict) -> str:
+    out = ['# Education Master', '']
+    for item in source['education']:
+        out += [f"## {_cell(item['school'])}", f"**Degree:** {_cell(item['degree'])}", f"**Dates:** {_cell(item['dates'])}"]
+        if item['detail']:
+            out.append(_cell(item['detail']))
+        out.append('')
+    out += ['## Projects & Competitions', '']
+    for project in source['projects']:
+        out += [f"### {_cell(project['name'])}" + (f" ({_cell(project['context'])})" if project['context'] else ''), _cell(project['text']), '']
+    if source['certifications']:
+        out += ['## Certifications', ''] + [f'- {_cell(item)}' for item in source['certifications']] + ['']
+    return '\n'.join(out).rstrip() + '\n'
+
+
+def _skills(source: dict) -> str:
+    out = ['# Skills Master', '']
+    for category, items in source['skills'].items():
+        out += [f'## {_cell(category)}', '', '| Skill | Context |', '|-------|---------|']
+        out += [f'| {_cell(item)} | |' for item in items] + ['']
+    return '\n'.join(out).rstrip() + '\n'
+
+
+def _career(source: dict, profile: dict) -> str:
+    career = source['career']
+    out = ['# Career Master', '', '## Professional Identity', '']
+    for index, headline in enumerate(career['headline_variants']):
+        out += [f"### Version {chr(65 + index)} — {_cell(headline['label'])}", _cell(headline['text']), '']
+    out += ['## Career Narrative', _cell(career['narrative']), '', '## Why Looking Now', _cell(career['why_looking']), '',
+            '## Target Compensation', _cell(career['target_compensation']), '', '## Work Authorization', _cell(career['work_authorization']), '',
+            '## Notice Period', _cell(career['notice_period']), '', '## Target Roles']
+    out += [f'- {_cell(title)}' for title in (career['target_roles'] or profile.get('target_titles', []))]
+    return '\n'.join(out).rstrip() + '\n'
+
+
+def render_knowledge(source: dict, profile: dict) -> dict[str, str]:
+    source = validate_source(source)
+    return {'career-master.md': _career(source, profile), 'employment-master.md': _employment(source),
+            'education-master.md': _education(source), 'skills-master.md': _skills(source)}
+
+
+def _source_path() -> Path:
+    return paths.knowledge_dir() / 'profile_source.json'
+
+
+_source_save_lock = Lock()
+
+
+def load_source() -> dict | None:
+    path = _source_path()
+    if not path.is_file():
+        return None
+    return validate_source(json.loads(path.read_text(encoding='utf-8')))
+
+
+def save_source(source: dict) -> dict:
+    result = assign_source_ids(validate_source(source))
+    unverified = [item['id'] for role in result['roles'] for item in role['achievements'] if item['unverified']]
+    if unverified:
+        error = OnboardingError('Some numbers still need confirming.')
+        error.unverified = unverified
+        raise error
+    knowledge = paths.knowledge_dir()
+    knowledge.mkdir(parents=True, exist_ok=True)
+    profile = prof.load_profile()
+    incomplete = knowledge / '.profile-source-save-incomplete'
+    rendered = render_knowledge(result, profile)
+    identity = prof.render_identity_md(profile)
+    source_json = json.dumps(result, indent=2, ensure_ascii=False) + '\n'
+    with _source_save_lock:
+        prof._atomic_write(incomplete, 'Profile source publication did not finish. Save the profile source again.\n')
+        for filename, text in rendered.items():
+            prof._atomic_write(knowledge / filename, text)
+        prof._atomic_write(knowledge / 'identity.md', identity)
+        prof._atomic_write(_source_path(), source_json)
+        # A partial set is intentionally left behind the readiness marker. A
+        # later successful save republishes every output before clearing it.
+        incomplete.unlink()
+    return result

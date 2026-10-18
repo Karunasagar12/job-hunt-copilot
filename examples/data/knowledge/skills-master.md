@@ -2,48 +2,50 @@
 
 ## Programming Languages
 
-| Language | Proficiency | Years | Context |
-|----------|------------|-------|---------|
-| Python | Advanced | 6 | AA-01 forecasting |
+| Skill | Context |
+|-------|---------|
+| Python — advanced; six years; forecasting examples | |
+| SQL — advanced; analytics and data quality | |
 
 ## ML / AI Frameworks
 
-| Tool | Proficiency | Context |
-|------|------------|---------|
-| scikit-learn | Advanced | AA-01 evaluation |
+| Skill | Context |
+|-------|---------|
+| scikit-learn — advanced; reproducible evaluation examples | |
 
 ## Cloud & Infrastructure
 
-| Platform | Proficiency | Context |
-|----------|------------|---------|
-| Docker | Working | AA-05 model services |
+| Skill | Context |
+|-------|---------|
+| Docker — working knowledge; model service demonstrations | |
 
 ## Databases
 
-| Tool | Proficiency | Context |
-|------|------------|---------|
-| PostgreSQL | Advanced | NH-03 query benchmarks |
+| Skill | Context |
+|-------|---------|
+| PostgreSQL — advanced; query benchmark examples | |
 
 ## Product & Project Management
 
-| Tool | Proficiency | Context |
-|------|------------|---------|
-| GitHub Issues | Working | Fictional planning workflows |
+| Skill | Context |
+|-------|---------|
+| GitHub Issues — working knowledge; fictional planning workflows | |
 
 ## Domain Knowledge
 
-| Domain | Depth | Evidence |
-|--------|-------|---------|
-| Retail forecasting | Applied | AA-01 |
+| Skill | Context |
+|-------|---------|
+| Retail forecasting — applied; AA-01 | |
+| Healthcare analytics — applied; NH-01 | |
 
 ## Languages Spoken
 
-| Language | Level | Certification |
-|----------|-------|---------------|
-| English | Fluent | Example self-assessment |
+| Skill | Context |
+|-------|---------|
+| English — fluent; example self-assessment | |
 
 ## Certifications
 
-| Certification | Issuer | Current |
-|---------------|--------|---------|
-| Example analytics certificate | Fictional learning provider | 2021 |
+| Skill | Context |
+|-------|---------|
+| Example analytics certificate — fictional learning provider, 2021 | |

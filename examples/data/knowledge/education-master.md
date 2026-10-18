@@ -3,25 +3,21 @@
 ## Example University of Paris, France
 **Degree:** MSc Data Science
 **Dates:** 09/2017 – 06/2019
-**GPA:** 3.7/4.0
-
-### Courses Indexed by Domain
-**[machine-learning]:** Statistical learning, model evaluation.
-**[data-engineering]:** Databases, distributed processing.
+GPA: 3.7/4.0. Courses indexed by domain: statistical learning, model evaluation, databases, and distributed processing.
 
 ## Fictional Institute of Science, France
 **Degree:** BSc Applied Mathematics
 **Dates:** 09/2014 – 06/2017
-
-### Courses Indexed by Domain
-**[mathematics]:** Probability, linear algebra, optimization.
+Courses indexed by domain: probability, linear algebra, and optimization.
 
 ## Projects & Competitions
 
-### Synthetic Transit Forecast
+### Synthetic Transit Forecast (Machine learning and data engineering)
 Built an example demand forecast using generated passenger counts.
-**Tags:** [machine-learning] [data-engineering]
 
-### Open Data Quality Challenge
+### Open Data Quality Challenge (Data science and data engineering)
 Created reproducible validation checks for a fictional public dataset.
-**Tags:** [data-science] [data-engineering]
+
+## Certifications
+
+- Example analytics certificate — Fictional learning provider, 2021

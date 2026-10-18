@@ -1,0 +1,220 @@
+{
+  "career": {
+    "narrative": "Jane moved from operational analytics at Northwind Health to forecasting at Acme Analytics. All organizations and achievements in this fixture are fictional.",
+    "why_looking": "Seeking a collaborative team with meaningful opportunities to build useful models.",
+    "notice_period": "One month in this fictional example.",
+    "target_compensation": "EU: 70K - 90K EUR/year; discuss with employer.",
+    "work_authorization": "Example authorization in France; confirm actual eligibility before use.",
+    "headline_variants": [
+      {
+        "label": "Applied Data Science",
+        "text": "Senior data scientist building reliable forecasting and analytics tools."
+      },
+      {
+        "label": "Machine Learning",
+        "text": "Practitioner focused on reproducible evaluation and clear model monitoring."
+      }
+    ],
+    "target_roles": [
+      "Senior Data Scientist",
+      "Machine Learning Engineer"
+    ]
+  },
+  "roles": [
+    {
+      "company": "Acme Analytics",
+      "title": "Senior Data Scientist",
+      "location": "Paris, France",
+      "start": "2022-01",
+      "end": "present",
+      "description": "Fictional analytics consultancy serving retail and logistics teams.",
+      "owned": "Forecasting experiments, model monitoring, and reproducible evaluation.",
+      "hidden": false,
+      "achievements": [
+        {
+          "id": "AA-01",
+          "text": "Improved demand forecasts",
+          "metric": "12% lower MAE",
+          "context": "Fictional held-out retail benchmark",
+          "needs_metric": false,
+          "unverified": false
+        },
+        {
+          "id": "AA-02",
+          "text": "Automated evaluation",
+          "metric": "6 recurring reports",
+          "context": "Weekly model checks",
+          "needs_metric": false,
+          "unverified": false
+        },
+        {
+          "id": "AA-03",
+          "text": "Reduced batch latency",
+          "metric": "25% reduction",
+          "context": "Synthetic workload comparison",
+          "needs_metric": false,
+          "unverified": false
+        },
+        {
+          "id": "AA-04",
+          "text": "Mentored analysts",
+          "metric": "2 analysts",
+          "context": "Monthly project reviews",
+          "needs_metric": false,
+          "unverified": false
+        },
+        {
+          "id": "AA-05",
+          "text": "Shipped monitoring",
+          "metric": "3 model services",
+          "context": "Internal demonstration environment",
+          "needs_metric": false,
+          "unverified": false
+        }
+      ],
+      "technologies": [
+        "Python",
+        "SQL",
+        "pandas",
+        "scikit-learn",
+        "Docker"
+      ],
+      "keywords": [
+        "Data science",
+        "forecasting",
+        "experimentation",
+        "MLOps"
+      ]
+    },
+    {
+      "company": "Northwind Health",
+      "title": "Data Scientist",
+      "location": "Paris, France",
+      "start": "2019-07",
+      "end": "2021-12",
+      "description": "Fictional provider of operational analytics for clinics.",
+      "owned": "Data quality checks and capacity planning dashboards using synthetic data.",
+      "hidden": false,
+      "achievements": [
+        {
+          "id": "NH-01",
+          "text": "Added validation rules",
+          "metric": "18 checks",
+          "context": "Synthetic scheduling dataset",
+          "needs_metric": false,
+          "unverified": false
+        },
+        {
+          "id": "NH-02",
+          "text": "Built planning dashboards",
+          "metric": "4 dashboards",
+          "context": "Internal operations examples",
+          "needs_metric": false,
+          "unverified": false
+        },
+        {
+          "id": "NH-03",
+          "text": "Improved query runtime",
+          "metric": "30% reduction",
+          "context": "Repeated benchmark queries",
+          "needs_metric": false,
+          "unverified": false
+        },
+        {
+          "id": "NH-04",
+          "text": "Documented data pipelines",
+          "metric": "7 pipelines",
+          "context": "Team onboarding guide",
+          "needs_metric": false,
+          "unverified": false
+        }
+      ],
+      "technologies": [
+        "Python",
+        "SQL",
+        "PostgreSQL",
+        "matplotlib"
+      ],
+      "keywords": [
+        "Healthcare analytics",
+        "data quality",
+        "capacity planning"
+      ]
+    },
+    {
+      "company": "Contoso Labs",
+      "title": "Learning period",
+      "location": "",
+      "start": "",
+      "end": "",
+      "description": "",
+      "owned": "",
+      "hidden": true,
+      "achievements": [],
+      "technologies": [
+        "Git",
+        "Linux",
+        "statistical testing",
+        "technical writing"
+      ],
+      "keywords": []
+    }
+  ],
+  "education": [
+    {
+      "degree": "MSc Data Science",
+      "school": "Example University of Paris, France",
+      "dates": "09/2017 – 06/2019",
+      "detail": "GPA: 3.7/4.0. Courses indexed by domain: statistical learning, model evaluation, databases, and distributed processing."
+    },
+    {
+      "degree": "BSc Applied Mathematics",
+      "school": "Fictional Institute of Science, France",
+      "dates": "09/2014 – 06/2017",
+      "detail": "Courses indexed by domain: probability, linear algebra, and optimization."
+    }
+  ],
+  "projects": [
+    {
+      "name": "Synthetic Transit Forecast",
+      "context": "Machine learning and data engineering",
+      "text": "Built an example demand forecast using generated passenger counts."
+    },
+    {
+      "name": "Open Data Quality Challenge",
+      "context": "Data science and data engineering",
+      "text": "Created reproducible validation checks for a fictional public dataset."
+    }
+  ],
+  "skills": {
+    "Programming Languages": [
+      "Python — advanced; six years; forecasting examples",
+      "SQL — advanced; analytics and data quality"
+    ],
+    "ML / AI Frameworks": [
+      "scikit-learn — advanced; reproducible evaluation examples"
+    ],
+    "Cloud & Infrastructure": [
+      "Docker — working knowledge; model service demonstrations"
+    ],
+    "Databases": [
+      "PostgreSQL — advanced; query benchmark examples"
+    ],
+    "Product & Project Management": [
+      "GitHub Issues — working knowledge; fictional planning workflows"
+    ],
+    "Domain Knowledge": [
+      "Retail forecasting — applied; AA-01",
+      "Healthcare analytics — applied; NH-01"
+    ],
+    "Languages Spoken": [
+      "English — fluent; example self-assessment"
+    ],
+    "Certifications": [
+      "Example analytics certificate — fictional learning provider, 2021"
+    ]
+  },
+  "certifications": [
+    "Example analytics certificate — Fictional learning provider, 2021"
+  ]
+}

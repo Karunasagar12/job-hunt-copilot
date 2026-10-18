@@ -76,7 +76,7 @@ def test_identity_preserves_unicode_and_region_order(base):
     base['regions'].append(copy.deepcopy(prof.REGION_PRESETS['gcc']))
     p = prof.validate(base)
     expected = ('# Identity\n\n## Common\nName: José Müller\nEmail: jane.doe@example.com\n'
-                'LinkedIn: linkedin.com/in/janedoe-example\nGitHub: \nTitle: Senior Data Scientist\n'
+                'LinkedIn: linkedin.com/in/janedoe-example\nGitHub:\nTitle: Senior Data Scientist\n'
                 'Photo: photo.jpg\n\n## Europe\nPhone: +33 1 00 00 00 00\nLocation: Paris, France\n'
                 '\n## Gulf\nPhone: \nLocation: \n')
     assert prof.render_identity_md(p) == expected
