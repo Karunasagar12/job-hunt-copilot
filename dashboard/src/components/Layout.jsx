@@ -8,6 +8,8 @@ const TITLES = {
   '/today': 'Mission Brief',
   '/shortlist': 'Shortlist',
   '/analytics': 'Analytics',
+  '/profile': 'Profile',
+  '/settings': 'Settings',
 };
 
 export default function Layout() {

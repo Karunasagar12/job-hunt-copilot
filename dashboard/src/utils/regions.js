@@ -10,3 +10,7 @@ export function regionOptions(regions, { includeAuto = false } = {}) {
     ? [{ value: 'auto', label: 'Auto-detect' }, ...options]
     : options;
 }
+
+export function updateProfileRegions(profile, regions, defaultRegion) {
+  return { ...profile, regions: [...regions], default_region: defaultRegion };
+}
