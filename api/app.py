@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 load_dotenv(paths.repo_dir() / ".env")
 load_dotenv(paths.data(".env"))
 
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, send_from_directory
 from flask_cors import CORS
 
 import fullenrich_client
@@ -47,6 +47,8 @@ paths.ensure_dirs()
 db.init_db()
 
 PROJECT_ROOT = paths.repo_dir()
+VERSION = os.environ.get("APP_VERSION", "dev")
+DIST_DIR = PROJECT_ROOT / "dashboard" / "dist"
 
 LOG_DIR = paths.logs_dir()
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -2085,6 +2087,27 @@ def recover_sourced_generations():
     if jobs:
         logger.info(f"[SOURCING] recovered {len(jobs)} generation(s): {[j['id'] for j in jobs]}")
     return len(jobs)
+
+
+@app.get("/api/health")
+def health():
+    return jsonify({"ok": True, "version": VERSION})
+
+
+@app.get("/", defaults={"path": ""})
+@app.get("/<path:path>")
+def spa(path):
+    if path == "api" or path.startswith("api/"):
+        return err("Not found", 404)
+    dist = Path(DIST_DIR)
+    index = dist / "index.html"
+    if not index.is_file():
+        return jsonify({"error": "dashboard not built"}), 404
+
+    target = (dist / path).resolve()
+    if path and target.is_file() and dist.resolve() in target.parents:
+        return send_from_directory(dist, path)
+    return send_from_directory(dist, "index.html")
 
 
 if __name__ == "__main__":
