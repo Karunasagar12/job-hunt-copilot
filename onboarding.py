@@ -2,11 +2,18 @@
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from copy import deepcopy
+import json
+import re
+from threading import Lock, Thread
+from uuid import uuid4
 
 from docx import Document
 from pypdf import PdfReader
 
 import paths
+import llm_client
+import skill_loader
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 EXTENSIONS = ('.pdf', '.docx')
@@ -91,3 +98,210 @@ def uploaded_text() -> dict[str, str]:
                 result[kind] = extract_text(document) if document.stat().st_size else ''
                 break
     return result
+
+
+def parse_llm_json(text: str) -> dict:
+    """Accept an object with optional Markdown fences or surrounding prose."""
+    if isinstance(text, str):
+        decoder = json.JSONDecoder()
+        for match in re.finditer(r'\{', text):
+            try:
+                value, _ = decoder.raw_decode(text[match.start():])
+            except ValueError:
+                continue
+            if isinstance(value, dict):
+                return value
+    raise OnboardingError('The profile response did not contain a valid JSON object. Please redraft.')
+
+
+_ACHIEVEMENT = {'id': '', 'text': '', 'metric': '', 'context': '',
+                'needs_metric': False, 'unverified': False}
+_ROLE = {**dict.fromkeys(('company', 'title', 'location', 'start', 'end',
+                         'description', 'owned'), ''), 'hidden': False,
+         'achievements': [_ACHIEVEMENT], 'technologies': [''], 'keywords': ['']}
+_SCHEMA = {
+    'career': {**dict.fromkeys(('narrative', 'why_looking', 'notice_period',
+                              'target_compensation', 'work_authorization'), ''),
+               'headline_variants': [{'label': '', 'text': ''}], 'target_roles': ['']},
+    'roles': [_ROLE],
+    'education': [dict.fromkeys(('degree', 'school', 'dates', 'detail'), '')],
+    'projects': [dict.fromkeys(('name', 'context', 'text'), '')],
+    'skills': {}, 'certifications': ['']}
+
+
+def validate_source(data: dict) -> dict:
+    """Normalize known fields without coercing malformed nested values."""
+    def normalize(value, schema, path):
+        if isinstance(schema, dict):
+            if not isinstance(value, dict):
+                raise OnboardingError(f'Invalid profile field {path}: expected an object.')
+            if path == 'skills':
+                return {key: normalize(items, [''], 'skills.' + key)
+                        for key, items in value.items() if isinstance(key, str)}
+            return {key: normalize(value.get(key, default(template)), template,
+                                   f'{path}.{key}'.strip('.'))
+                    for key, template in schema.items()}
+        if isinstance(schema, list):
+            if not isinstance(value, list):
+                raise OnboardingError(f'Invalid profile field {path}: expected a list.')
+            return [normalize(item, schema[0], path) for item in value]
+        if type(value) is not type(schema):
+            expected = 'boolean' if isinstance(schema, bool) else 'text'
+            raise OnboardingError(f'Invalid profile field {path}: expected {expected}.')
+        return value
+
+    def default(template):
+        return {} if isinstance(template, dict) else [] if isinstance(template, list) else template
+
+    return normalize(data, _SCHEMA, '')
+
+
+def _company_prefix(company):
+    words = re.findall(r'[A-Za-z0-9]+', company)
+    if not words:
+        return 'XX'
+    return (words[0][:2] if len(words) == 1 else words[0][0] + words[1][0]).upper().ljust(2, 'X')
+
+
+def assign_source_ids(source: dict) -> dict:
+    """Assign unique IDs, reserving existing IDs before inserting new achievements."""
+    result = deepcopy(source)
+    seen = set()
+    claimed_prefixes = set()
+    role_prefixes = []
+    # Existing IDs bind prefixes to their roles, independently of role order.
+    for role in result['roles']:
+        prefix = None
+        for achievement in role['achievements']:
+            identifier = achievement.get('id', '')
+            match = re.fullmatch(r'([A-Z]{2}\d*)-(\d{2,})', identifier)
+            if match and identifier not in seen:
+                seen.add(identifier)
+                prefix = prefix or match[1]
+            else:
+                achievement['id'] = ''
+        role_prefixes.append(prefix)
+        if prefix:
+            claimed_prefixes.add(prefix)
+    for role, prefix in zip(result['roles'], role_prefixes):
+        if prefix is None:
+            base = _company_prefix(role['company'])
+            prefix = base
+            suffix = 2
+            while prefix in claimed_prefixes:
+                prefix = f'{base}{suffix}'
+                suffix += 1
+            claimed_prefixes.add(prefix)
+        highest = max((int(value.rsplit('-', 1)[1]) for value in seen
+                       if value.rsplit('-', 1)[0] == prefix), default=0)
+        for achievement in role['achievements']:
+            if not achievement.get('id'):
+                highest += 1
+                identifier = f'{prefix}-{highest:02d}'
+                seen.add(identifier)
+                achievement['id'] = identifier
+    return result
+
+
+def _numbers(text):
+    # Grouping commas are equivalent; decimal points remain significant.
+    return set(re.findall(r'\d+\.\d+|\.\d+|\d+', re.sub(r'(?<=\d),(?=\d{3}(?:\D|$))', '', text)))
+
+
+def flag_unverified(source: dict, evidence: str) -> dict:
+    result = deepcopy(source)
+    supported = _numbers(evidence)
+    for role in result['roles']:
+        for achievement in role['achievements']:
+            numbers = _numbers(achievement['text'] + ' ' + achievement['metric'])
+            achievement['unverified'] = bool(numbers - supported)
+    return result
+
+
+def _call_profile_builder(prompt):
+    system = skill_loader.load_skill('profile-builder')
+    for attempt in range(2):
+        response = llm_client.call_llm(system, prompt, max_tokens=8000, timeout=300)
+        try:
+            return validate_source(parse_llm_json(response))
+        except OnboardingError as exc:
+            if attempt:
+                raise OnboardingError('The profile response failed JSON/schema validation. Please redraft.') from None
+            prompt += '\nValidation error: ' + str(exc) + '\nReturn ONLY JSON matching the schema.'
+
+
+def draft(cv_text: str, linkedin_text: str = '', existing=None) -> dict:
+    prompt = '# CV\n' + cv_text
+    if linkedin_text:
+        prompt += '\n# LinkedIn\n' + linkedin_text
+    known = set()
+    if existing is not None:
+        existing = validate_source(existing)
+        known = {a['id'] for r in existing['roles'] for a in r['achievements'] if a['id']}
+        prompt += '\n# Existing profile: keep IDs and user edits\n' + json.dumps(existing)
+    result = _call_profile_builder(prompt)
+    for role in result['roles']:
+        for achievement in role['achievements']:
+            if achievement['id'] not in known:
+                achievement['id'] = ''
+    return flag_unverified(assign_source_ids(result), cv_text + '\n' + linkedin_text)
+
+
+def validate_answers(answers):
+    if not isinstance(answers, dict) or any(not isinstance(key, str) or not isinstance(value, str)
+                                            for key, value in answers.items()):
+        raise OnboardingError('Gap answers must map achievement IDs to text.')
+    return dict(answers)
+
+
+def apply_gaps(source: dict, answersByID: dict, evidence: str) -> dict:
+    original = validate_source(source)
+    answers = validate_answers(answersByID)
+    known = {a['id'] for r in original['roles'] for a in r['achievements']}
+    answers = {key: value for key, value in answers.items() if key in known and value.strip()}
+    if not answers:
+        return original
+    prompt = ('MODE: apply_gaps\n# Current profile\n' + json.dumps(original)
+              + '\n# Answers by ID\n' + json.dumps(answers))
+    proposed = flag_unverified(_call_profile_builder(prompt),
+                               evidence + '\n' + '\n'.join(answers.values()))
+    updates = {a['id']: a for r in proposed['roles'] for a in r['achievements'] if a['id'] in answers}
+    # The model cannot replace roles, unanswered achievements, context, or user edits.
+    for role in original['roles']:
+        for achievement in role['achievements']:
+            if achievement['id'] in updates:
+                update = updates[achievement['id']]
+                achievement.update(text=update['text'], metric=update['metric'], needs_metric=False,
+                                   unverified=update['unverified'])
+    return original
+
+
+# Deliberately process-local: restarting the server requires a fresh draft.
+_tasks = {}
+_task_lock = Lock()
+
+
+def start_task(fn, *args) -> str:
+    task_id = str(uuid4())
+    with _task_lock:
+        _tasks[task_id] = {'status': 'running'}
+
+    def run():
+        try:
+            status = {'status': 'done', 'result': fn(*args)}
+        except llm_client.LLMError as exc:
+            status = {'status': 'error', 'error': llm_client._MESSAGES.get(exc.kind, llm_client._MESSAGES['unknown'])}
+        except OnboardingError:
+            status = {'status': 'error', 'error': 'Profile JSON/schema validation failed. Please redraft.'}
+        except Exception:
+            status = {'status': 'error', 'error': 'Could not build the profile. Please retry or redraft.'}
+        with _task_lock:
+            _tasks[task_id] = status
+
+    Thread(target=run, daemon=True).start()
+    return task_id
+
+
+def task_status(task_id: str):
+    with _task_lock:
+        return deepcopy(_tasks.get(task_id))

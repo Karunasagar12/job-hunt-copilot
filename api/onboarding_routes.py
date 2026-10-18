@@ -38,3 +38,38 @@ def upload_documents():
     except OSError:
         return _err('Could not save the upload. Check the data directory.', 500)
     return jsonify({'chars': chars, 'warnings': warnings})
+
+
+@onboarding_bp.post('/api/onboarding/draft')
+def draft_profile():
+    try:
+        texts = onboarding.uploaded_text()
+        if not texts['cv']:
+            return _err('Upload a CV before drafting a profile.')
+        existing = None  # Task 18 wires existing profile
+        task_id = onboarding.start_task(onboarding.draft, texts['cv'], texts['linkedin'], existing)
+    except onboarding.OnboardingError as exc:
+        return _err(str(exc))
+    return jsonify({'task_id': task_id})
+
+
+@onboarding_bp.get('/api/onboarding/draft/<task_id>')
+def draft_status(task_id):
+    status = onboarding.task_status(task_id)
+    return jsonify(status) if status is not None else _err('Draft task not found. Please redraft.', 404)
+
+
+@onboarding_bp.post('/api/onboarding/gaps')
+def profile_gaps():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or 'source' not in payload or 'answers' not in payload:
+        return _err('Provide a profile source and gap answers.')
+    try:
+        source = onboarding.validate_source(payload['source'])
+        answers = onboarding.validate_answers(payload['answers'])
+        texts = onboarding.uploaded_text()
+        task_id = onboarding.start_task(onboarding.apply_gaps, source, answers,
+                                        texts['cv'] + '\n' + texts['linkedin'])
+    except onboarding.OnboardingError as exc:
+        return _err(str(exc))
+    return jsonify({'task_id': task_id})

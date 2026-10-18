@@ -27,7 +27,7 @@ def test_fake_covers_markers(monkeypatch):
     markers = set()
     for file in files:
         markers.update(re.findall(r'<!-- skill: ([a-z0-9-]+) -->', file.read_text(encoding='utf-8')))
-    for name in markers - {'humanizer', 'profile-builder'}:
+    for name in markers - {'humanizer'}:
         assert (root / 'fake_llm' / (name + '.txt')).is_file(), name
         assert llm_client.call_llm('<!-- skill: ' + name + ' -->', '')
 
