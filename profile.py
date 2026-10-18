@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import tempfile
+import time
 import unicodedata
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -173,7 +174,15 @@ def _atomic_write(path, text):
         with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', newline='\n', dir=path.parent, delete=False) as handle:
             temp_path = Path(handle.name)
             handle.write(text)
-        os.replace(temp_path, path)
+        # Windows readers can briefly deny replacement even after our writer closes.
+        for attempt in range(5):
+            try:
+                os.replace(temp_path, path)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
     finally:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)

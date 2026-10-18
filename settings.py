@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import json
 import os
 import tempfile
+import time
 from uuid import uuid4
 
 import paths
@@ -102,7 +103,15 @@ def update(partial):
             _chmod_private(temporary)
             json.dump(value, stream, indent=2, ensure_ascii=False)
             stream.write('\n')
-        os.replace(temporary, target)
+        # Windows readers can briefly deny replacement even after our writer closes.
+        for attempt in range(5):
+            try:
+                os.replace(temporary, target)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
     finally:
         if temporary and os.path.exists(temporary):
             os.unlink(temporary)
