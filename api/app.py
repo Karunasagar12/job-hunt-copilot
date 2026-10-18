@@ -34,11 +34,13 @@ import outreach_manager
 from api.utils import run_pipeline_async
 
 from api.settings_routes import settings_bp
+from api.onboarding_routes import onboarding_bp
 import integrations
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024
 app.register_blueprint(settings_bp)
+app.register_blueprint(onboarding_bp)
 CORS(app)
 
 paths.ensure_dirs()
