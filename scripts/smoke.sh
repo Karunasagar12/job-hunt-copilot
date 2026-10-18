@@ -14,8 +14,11 @@ chmod -R a+rwX data
 C="docker compose -f docker-compose.yml -f docker-compose.ci.yml"
 cleanup() {
   $C logs app 2>/dev/null | tail -50 || true
+  # Files written by the container belong to its uid (1000); on hosts where the
+  # user has another uid (e.g. CI runners) only the container can delete them.
+  $C exec -T app sh -c 'rm -rf /data/* /data/.[!.]*' 2>/dev/null || true
   $C down || true
-  rm -rf data
+  rm -rf data || true
 }
 trap cleanup EXIT
 $C up -d --build
