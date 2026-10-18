@@ -37,6 +37,8 @@ SCOPES = [
 
 _LOGGER = logging.getLogger(__name__)
 REDIRECT_URI = 'http://localhost:8080/api/gmail/callback'
+# ponytail: keep the SDK's PKCE verifier until callback; restart needs reconnect.
+_authorization_flows = {}
 
 
 def _resolve_path_from_env(env_var: str, default_filename: str) -> Path:
@@ -88,13 +90,16 @@ def _flow(state=None):
 def authorization_url(state: str) -> str:
     flow = _flow(state)
     url, _ = flow.authorization_url(access_type='offline', prompt='consent', state=state)
+    _authorization_flows[state] = flow
     return url
 
 
 def finish_authorization(code: str, state: str) -> None:
     # ponytail: localhost-only redirect needs OAuthlib's HTTP transport exception.
     os.environ.setdefault('OAUTHLIB_INSECURE_TRANSPORT', '1')
-    flow = _flow(state)
+    flow = _authorization_flows.pop(state, None)
+    if flow is None:
+        raise RuntimeError('Gmail sign-in state expired. Connect again in Settings.')
     flow.fetch_token(code=code)
     _save_credentials(flow.credentials, _token_path())
 

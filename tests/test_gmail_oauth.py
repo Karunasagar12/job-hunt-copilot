@@ -1,9 +1,12 @@
 """Optional Gmail and localhost web OAuth, without real Google requests."""
 import io
 import json
+import base64
+import hashlib
 import subprocess
 import sys
 from types import SimpleNamespace
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import Mock
 
 import pytest
@@ -19,6 +22,7 @@ def gmail_paths(monkeypatch):
     monkeypatch.delenv('OAUTHLIB_INSECURE_TRANSPORT', raising=False)
     import api.settings_routes as routes
     monkeypatch.setattr(routes, '_gmail_oauth_states', set())
+    monkeypatch.setattr(gmail, '_authorization_flows', {})
 
 
 def test_api_import_without_google_packages():
@@ -136,6 +140,42 @@ def test_callback_persists_token_at_override_path(client, monkeypatch, gmail_cre
     assert client.post('/api/gmail/disconnect').status_code == 200
     assert not paths.data('alternate/token.json').exists()
     assert gmail._credentials_path().exists()
+
+
+def test_actual_sdk_preserves_pkce_for_each_single_use_callback(client, monkeypatch, gmail_credentials):
+    from requests_oauthlib import OAuth2Session
+    gmail._credentials_path().write_text(json.dumps({'web': {
+        'client_id': 'dummy-client', 'client_secret': 'dummy-secret',
+        'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
+        'token_uri': 'https://oauth2.googleapis.com/token',
+    }}), encoding='utf-8')
+    exchanges = {}
+
+    def fetch_token(session, token_url, **kwargs):
+        exchanges[kwargs['code']] = kwargs
+        session.token = {'access_token': 'dummy-access', 'refresh_token': 'dummy-refresh',
+                         'token_type': 'Bearer', 'expires_at': 2000000000}
+        return session.token
+
+    monkeypatch.setattr(OAuth2Session, 'fetch_token', fetch_token)
+    first = parse_qs(urlsplit(client.get('/api/gmail/connect').location).query)
+    second = parse_qs(urlsplit(client.get('/api/gmail/connect').location).query)
+    assert first['code_challenge_method'] == second['code_challenge_method'] == ['S256']
+    assert first['state'] != second['state']
+    for code, consent in (('dummy-second', second), ('dummy-first', first)):
+        state = consent['state'][0]
+        response = client.get('/api/gmail/callback', query_string={'code': code, 'state': state})
+        verifier = exchanges[code]['code_verifier']
+        assert isinstance(verifier, str) and verifier
+        challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode('ascii')).digest()).decode('ascii').rstrip('=')
+        assert challenge == consent['code_challenge'][0]
+        assert response.status_code == 302
+        assert response.location == 'http://127.0.0.1:8080/settings?gmail=connected'
+        assert json.loads(gmail._token_path().read_text())['refresh_token'] == 'dummy-refresh'
+        assert client.get('/api/gmail/callback', query_string={'code': code, 'state': state}).status_code == 400
+        with pytest.raises(RuntimeError, match='expired|state|Connect|connect'):
+            gmail.finish_authorization(code, state)
+    assert len(exchanges) == 2
 
 
 @pytest.mark.parametrize('token', ['[]', 'null', '"dummy"', '{"refresh_token":"dummy","client_id":"dummy","client_secret":"dummy","expiry":[]}', '{"refresh_token":"dummy","client_id":"dummy","client_secret":"dummy","expiry":123}'])

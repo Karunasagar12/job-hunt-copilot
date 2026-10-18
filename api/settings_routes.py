@@ -61,9 +61,10 @@ def connect_gmail():
 def gmail_callback():
     import gmail_client
     state = request.args.get('state')
-    if not state or state not in _gmail_oauth_states:
+    try:
+        _gmail_oauth_states.remove(state)
+    except KeyError:
         return _err('Invalid or expired Gmail sign-in state. Connect again in Settings.')
-    _gmail_oauth_states.discard(state)
     code = request.args.get('code')
     if not code:
         return _err('Gmail sign-in did not return a code. Connect again in Settings.')
