@@ -30,6 +30,14 @@ In Finder, right-click `start.command`, choose **Open**, and confirm **Open** in
 
 The Docker image is built for both Intel/AMD and Apple Silicon Macs. Ensure Docker Desktop is up to date, then try the start script again.
 
+## Linux: "Permission denied" in the data folder
+
+The app runs inside Docker as user ID 1000. Docker Desktop on Windows and Mac handles file ownership for you, but on Linux the `data` folder must be writable by that user. If the app can't save settings or files, run this once next to the start script, then start the app again:
+
+```
+sudo chown -R 1000:1000 data
+```
+
 ## Find the logs
 
 In Docker Desktop, open **Containers**, select `job-hunt-copilot`, then select the `app` or `scheduler` container and open **Logs**. Include the relevant error text when asking for help, but remove personal data and secrets first.
